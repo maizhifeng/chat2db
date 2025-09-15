@@ -20,6 +20,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # By default we use the 'production' target which builds inside the image.
+      # To use a prebuilt dist (copy ./frontend/dist into image), set the env var
+      # FRONTEND_BUILD_TARGET=prebuilt when running docker-compose build.
+      target: ${FRONTEND_BUILD_TARGET:-production}
     container_name: chat2db_frontend
     ports:
       - "4200:80"
