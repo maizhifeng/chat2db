@@ -79,6 +79,7 @@ def call_ollama(prompt, model=None, timeout=30):
 def chat():
     data = request.get_json() or {}
     message = data.get('message')
+    model = data.get('model')
     history = data.get('history', [])
     if not message:
         return jsonify({'error': 'missing message'}), 400
@@ -93,7 +94,8 @@ def chat():
     prompt_parts.append(f"user: {message}")
     prompt = "\n".join(prompt_parts) + "\nassistant:"
 
-    resp = call_ollama(prompt)
+    # allow caller to specify model to use
+    resp = call_ollama(prompt, model=model)
     # If Ollama returned error, pass back
     if 'error' in resp:
         return jsonify({'error': resp['error']}), 500
@@ -115,6 +117,20 @@ def chat():
         result_text = str(resp)
 
     return jsonify({'message': result_text, 'raw': resp})
+
+
+@app.route('/api/models', methods=['GET'])
+def models():
+    """Proxy the Ollama /api/models endpoint so frontend can list available models.
+    Returns JSON list or an error object when Ollama is unreachable.
+    """
+    try:
+        url = f"{OLLAMA_URL}/api/models"
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # bind to 0.0.0.0 so container exposes it
