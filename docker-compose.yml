@@ -25,6 +25,9 @@ services:
       # FRONTEND_BUILD_TARGET=prebuilt when running docker-compose build.
       target: ${FRONTEND_BUILD_TARGET:-production}
     container_name: chat2db_frontend
+    depends_on:
+      - backend
+    restart: unless-stopped
     ports:
       - "4200:80"
     networks:
