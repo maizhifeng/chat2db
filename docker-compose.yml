@@ -12,6 +12,10 @@ services:
       - "5001:5001"
     environment:
       - FLASK_ENV=development
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama2
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - chat2db_net
 
