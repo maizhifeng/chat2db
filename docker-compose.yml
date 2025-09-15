@@ -43,7 +43,7 @@ services:
     volumes:
       - ./frontend:/app/frontend:delegated
       - /app/frontend/node_modules
-  command: sh -lc "npm ci --silent || npm install --silent && npm run start -- --host 0.0.0.0 --port 4200 --no-open --disable-host-check"
+    command: sh -lc "npm ci --silent || npm install --silent && npm run start -- --host 0.0.0.0 --port 4200 --no-open --disable-host-check"
     ports:
       - "4200:4200"
     environment:
