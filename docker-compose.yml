@@ -16,7 +16,7 @@ services:
       - chat2db_net
 
   # frontend 占位：你可以把 Angular 的构建产物放到 ./frontend_dist 并通过简单的 nginx 服务托管
-  frontend:
+  nginx:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -24,7 +24,7 @@ services:
       # To use a prebuilt dist (copy ./frontend/dist into image), set the env var
       # FRONTEND_BUILD_TARGET=prebuilt when running docker-compose build.
       target: ${FRONTEND_BUILD_TARGET:-production}
-    container_name: chat2db_frontend
+    container_name: chat2db_nginx
     depends_on:
       - backend
     restart: unless-stopped
