@@ -1,8 +1,21 @@
 <div class="chat2db">
   <h3>Chat2DB 简易演示</h3>
+
+  <div style="margin-bottom:8px;">
+    <label>模型: </label>
+    <select [(ngModel)]="selectedModel">
+      <option *ngFor="let m of models" [value]="m">{{m}}</option>
+    </select>
+    <button (click)="fetchModels()" [disabled]="loadingModels">刷新模型</button>
+    <span *ngIf="loadingModels">加载模型中...</span>
+  </div>
+
   <textarea rows="3" cols="60" [(ngModel)]="queryText"></textarea>
   <br>
   <button (click)="send()" [disabled]="loading">发送</button>
+  <button (click)="loadModelAndChat()" [disabled]="loading || !selectedModel">加载并发送</button>
+
+  <div *ngIf="loadingMessage">{{loadingMessage}}</div>
 
   <div *ngIf="sql">
     <h4>执行的 SQL</h4>
