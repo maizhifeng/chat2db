@@ -1,0 +1,32 @@
+{
+  "name": "chat2db-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "webpack serve --config webpack.config.js --mode development",
+    "build": "webpack --config webpack.config.js --mode production"
+  },
+  "dependencies": {
+    "@angular/common": "^16.0.0",
+    "@angular/core": "^16.0.0",
+    "@angular/platform-browser": "^16.0.0",
+    "@angular/platform-browser-dynamic": "^16.0.0",
+    "@angular/forms": "^16.0.0",
+    "rxjs": "^7.0.0",
+    "zone.js": "^0.12.0",
+    "tslib": "^2.0.0",
+    "reflect-metadata": "^0.1.13",
+    "core-js": "^3.0.0",
+    "@angular/common/http": "^16.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-loader": "^9.0.0",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^4.0.0",
+    "webpack-dev-server": "^4.0.0",
+    "html-webpack-plugin": "^5.0.0",
+    "css-loader": "^6.0.0",
+    "style-loader": "^3.0.0"
+  }
+}

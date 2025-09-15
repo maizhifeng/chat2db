@@ -1,3 +1,14 @@
+# Frontend
+
+This folder contains a minimal Angular-based frontend for Chat2DB.
+
+Installation:
+
+1. cd frontend
+2. npm install
+3. npm start
+
+The dev server runs on http://localhost:4200 by default and proxies API calls to the backend running on :5001.
 前端说明
 
 该目录包含可复制到 Angular 项目的简单组件和服务示例。

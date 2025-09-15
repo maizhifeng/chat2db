@@ -1,0 +1,27 @@
+<div class="chat2db">
+  <h3>Chat2DB 简易演示</h3>
+  <textarea rows="3" cols="60" [(ngModel)]="queryText"></textarea>
+  <br>
+  <button (click)="send()" [disabled]="loading">发送</button>
+
+  <div *ngIf="sql">
+    <h4>执行的 SQL</h4>
+    <pre>{{sql}}</pre>
+  </div>
+
+  <div *ngIf="results.length">
+    <h4>结果（最多 100 条）</h4>
+    <table border="1">
+      <thead>
+        <tr>
+          <th *ngFor="let k of (results[0] | keyvalue)">{{k.key}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of results">
+          <td *ngFor="let v of (r | keyvalue)">{{v.value}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
