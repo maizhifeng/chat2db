@@ -12,6 +12,7 @@
     <button (click)="loadModelAndChat()" [disabled]="loading || !selectedModel">加载并发送</button>
     <button (click)="send()" [disabled]="loading">发送（SQL）</button>
   </div>
+  <div *ngIf="loadingMessage" style="margin-top:8px;color:#b04;">{{loadingMessage}}</div>
 
   <div *ngIf="sql">
     <h4>执行的 SQL</h4>

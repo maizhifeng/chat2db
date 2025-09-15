@@ -15,6 +15,8 @@ export class QueryComponent implements OnInit {
   models: string[] = [];
   selectedModel: string | null = null;
   loadingModels = false;
+  loadingMessage = '';
+  retryCount = 0;
 
   constructor(private svc: QueryService) {}
 
@@ -73,22 +75,46 @@ export class QueryComponent implements OnInit {
   loadModelAndChat() {
     if (!this.selectedModel) return;
     this.loading = true;
-    this.svc.chat(this.queryText, [], this.selectedModel).subscribe({
-      next: (res) => {
-        // if backend returns sql-like response, keep old behavior; else show as message
-        if (res && res.sql) {
-          this.sql = res.sql;
-          this.results = res.rows || [];
-        } else if (res && res.message) {
-          this.sql = '';
-          this.results = [{ reply: res.message }];
+    this.loadingMessage = '';
+    this.retryCount = 0;
+    const tryChat = () => {
+      this.svc.chat(this.queryText, [], this.selectedModel).subscribe({
+        next: (res) => {
+          // check for server-side 'load' status
+          if (res && res.raw && typeof res.raw === 'object' && res.raw.done_reason === 'load') {
+            this.retryCount++;
+            this.loadingMessage = `模型正在加载，重试中 (${this.retryCount}/3)`;
+            if (this.retryCount < 3) {
+              setTimeout(tryChat, 3000);
+              return;
+            } else {
+              this.loadingMessage = '模型加载超时，请稍后再试。';
+            }
+          }
+
+          // if backend returns sql-like response, keep old behavior; else show as message
+          if (res && res.sql) {
+            this.sql = res.sql;
+            this.results = res.rows || [];
+          } else if (res && res.message) {
+            this.sql = '';
+            this.results = [{ reply: res.message }];
+          } else if (res && res.text) {
+            this.sql = '';
+            this.results = [{ reply: res.text }];
+          }
+
+          this.loading = false;
+          this.loadingMessage = '';
+        },
+        error: (err) => {
+          console.error(err);
+          this.loading = false;
+          this.loadingMessage = '请求出错，请查看控制台。';
         }
-        this.loading = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.loading = false;
-      }
-    });
+      });
+    };
+
+    tryChat();
   }
 }
