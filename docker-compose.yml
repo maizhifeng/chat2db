@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chat2db_backend
+    volumes:
+      - ./backend:/app:ro
+      - ./data:/data
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+    networks:
+      - chat2db_net
+
+  # frontend 占位：你可以把 Angular 的构建产物放到 ./frontend_dist 并通过简单的 nginx 服务托管
+  frontend:
+    image: nginx:stable-alpine
+    container_name: chat2db_frontend
+    volumes:
+      - ./frontend_dist:/usr/share/nginx/html:ro
+    ports:
+      - "4200:80"
+    networks:
+      - chat2db_net
+
+networks:
+  chat2db_net:
+    driver: bridge

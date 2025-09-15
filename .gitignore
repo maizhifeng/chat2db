@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+
+# SQLite
+*.sqlite
+
+# Docker
+/data/
+frontend_dist/
+
+# Node
+node_modules/
+
+# Editor
+.vscode/
+.idea/
