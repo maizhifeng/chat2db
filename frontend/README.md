@@ -67,3 +67,40 @@ npx ng serve --proxy-config proxy.conf.json
 - chat/query.component.ts/html -> 简单 UI，发送查询并显示结果
 
 使用方法：在你现有的 Angular 项目中创建 `src/app/chat/` 目录并复制这两个文件，然后在模块中声明组件并提供服务。
+
+
+Docker 构建与运行
+------------------
+
+项目已经包含用于生产的 `Dockerfile` 与 `nginx` 配置，并且可以通过 `docker-compose` 直接构建并启动前后端：
+
+默认（镜像内构建）：
+
+```bash
+# 在仓库根目录运行
+docker-compose up --build
+```
+
+预构建（CI/本地先构建 dist，再构建镜像）：
+
+```bash
+cd frontend
+npm ci
+npm run build -- --configuration production
+# 然后回到仓库根，使用 prebuilt target 构建镜像
+FRONTEND_BUILD_TARGET=prebuilt docker-compose build frontend
+docker-compose up -d
+```
+
+API 代理说明
+-------------
+
+为避免浏览器跨域，生产镜像的 Nginx 已配置把 `/api/` 路径代理到容器内的 `backend:5001`。因此在生产构建时前端会使用相对路径 `'/api'`（见 `src/environments/environment.prod.ts`）。
+
+开发模式建议：在本地使用 `ng serve` 时可以启用代理（proxy.conf.json），或在 `environment.ts` 中保留 `apiBase='http://localhost:5001/api'`。
+
+验证
+----
+
+1. 启动后在浏览器打开 http://localhost:4200
+2. 在前端 UI 提交一个自然语言查询，前端会通过 `/api/query` 调用后端并显示返回的 SQL 与数据。
