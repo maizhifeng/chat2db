@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { QueryService } from './query.service';
 
 @Component({
-  selector: 'app-query',
+  selector: 'app-root',
   templateUrl: './query.component.html'
 })
 export class QueryComponent implements OnInit {
