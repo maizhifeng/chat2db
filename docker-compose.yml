@@ -17,10 +17,10 @@ services:
 
   # frontend 占位：你可以把 Angular 的构建产物放到 ./frontend_dist 并通过简单的 nginx 服务托管
   frontend:
-    image: nginx:stable-alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: chat2db_frontend
-    volumes:
-      - ./frontend_dist:/usr/share/nginx/html:ro
     ports:
       - "4200:80"
     networks:
