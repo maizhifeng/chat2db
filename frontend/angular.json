@@ -51,5 +51,11 @@
         }
       }
     }
+<<<<<<< HEAD
   }
 }
+=======
+  },
+  
+  }
+>>>>>>> 216faba (chore(frontend): migrate to Angular CLI, add build/config files and update README)
