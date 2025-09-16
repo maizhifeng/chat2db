@@ -1,0 +1,106 @@
+<div class="connection-manager">
+  <h2>数据库连接管理</h2>
+  
+  <!-- Connection List -->
+  <div class="connection-list">
+    <h3>现有连接</h3>
+    <button (click)="showCreateForm()" class="btn btn-primary">新建连接</button>
+    
+    <table *ngIf="connections.length > 0" class="table">
+      <thead>
+        <tr>
+          <th>名称</th>
+          <th>类型</th>
+          <th>主机</th>
+          <th>数据库</th>
+          <th>环境</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let conn of connections">
+          <td>{{ conn.name }}</td>
+          <td>{{ conn.type }}</td>
+          <td>{{ conn.host }}</td>
+          <td>{{ conn.database }}</td>
+          <td>{{ conn.environment }}</td>
+          <td>
+            <button (click)="editConnection(conn)" class="btn btn-sm btn-secondary">编辑</button>
+            <button (click)="testConnection(conn.id)" class="btn btn-sm btn-info">测试</button>
+            <button (click)="deleteConnection(conn.id)" class="btn btn-sm btn-danger">删除</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <p *ngIf="connections.length === 0">暂无数据库连接</p>
+  </div>
+  
+  <!-- Connection Form -->
+  <div class="connection-form" *ngIf="showForm">
+    <h3>{{ isEditing ? '编辑连接' : '新建连接' }}</h3>
+    <form (ngSubmit)="saveConnection()" #connectionForm="ngForm">
+      <div class="form-group">
+        <label for="name">连接名称:</label>
+        <input type="text" id="name" name="name" [(ngModel)]="currentConnection.name" required class="form-control">
+      </div>
+      
+      <div class="form-group">
+        <label for="type">数据库类型:</label>
+        <select id="type" name="type" [(ngModel)]="currentConnection.type" required class="form-control">
+          <option value="sqlite">SQLite</option>
+          <option value="mysql">MySQL</option>
+          <option value="postgresql">PostgreSQL</option>
+        </select>
+      </div>
+      
+      <div class="form-group" *ngIf="currentConnection.type !== 'sqlite'">
+        <label for="host">主机地址:</label>
+        <input type="text" id="host" name="host" [(ngModel)]="currentConnection.host" required class="form-control">
+      </div>
+      
+      <div class="form-group" *ngIf="currentConnection.type !== 'sqlite'">
+        <label for="port">端口:</label>
+        <input type="number" id="port" name="port" [(ngModel)]="currentConnection.port" required class="form-control">
+      </div>
+      
+      <div class="form-group" *ngIf="currentConnection.type !== 'sqlite'">
+        <label for="username">用户名:</label>
+        <input type="text" id="username" name="username" [(ngModel)]="currentConnection.username" required class="form-control">
+      </div>
+      
+      <div class="form-group" *ngIf="currentConnection.type !== 'sqlite'">
+        <label for="password">密码:</label>
+        <input type="password" id="password" name="password" [(ngModel)]="currentConnection.password" required class="form-control">
+      </div>
+      
+      <div class="form-group">
+        <label for="database">数据库名称:</label>
+        <input type="text" id="database" name="database" [(ngModel)]="currentConnection.database" required class="form-control">
+      </div>
+      
+      <div class="form-group">
+        <label for="environment">环境:</label>
+        <select id="environment" name="environment" [(ngModel)]="currentConnection.environment" required class="form-control">
+          <option value="dev">开发环境</option>
+          <option value="test">测试环境</option>
+          <option value="prod">生产环境</option>
+        </select>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="!connectionForm.form.valid">
+          {{ isEditing ? '更新' : '创建' }}
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="cancelForm()">取消</button>
+      </div>
+    </form>
+  </div>
+  
+  <!-- Test Result -->
+  <div class="test-result" *ngIf="testResult">
+    <div class="alert" [ngClass]="testResult.success ? 'alert-success' : 'alert-danger'">
+      {{ testResult.message }}
+    </div>
+  </div>
+</div>

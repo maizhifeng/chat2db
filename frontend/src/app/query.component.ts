@@ -1,9 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { QueryService } from './query.service';
+import { NlpService } from './services/nlp.service';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './query.component.html'
+  selector: 'app-query',
+  templateUrl: './query.component.html',
+  styleUrls: ['./query.component.css']
 })
 export class QueryComponent implements OnInit {
   queryText = '';
@@ -18,7 +20,14 @@ export class QueryComponent implements OnInit {
   loadingMessage = '';
   retryCount = 0;
 
-  constructor(private svc: QueryService) {}
+  // NLP features
+  useNlp = false;
+  generatedSql = '';
+
+  constructor(
+    private svc: QueryService,
+    private nlpService: NlpService
+  ) {}
 
   ngOnInit(): void {
     this.fetchModels();
@@ -31,12 +40,15 @@ export class QueryComponent implements OnInit {
         // response may be {models: [...] } or a plain array depending on Ollama
         if (Array.isArray(res)) {
           this.models = res;
-        } else if (res && Array.isArray((res as any).models)) {
-          this.models = (res as any).models;
-        } else if (res && (res as any).error) {
-          console.warn('models endpoint returned error', (res as any).error);
+        } else if (res && Array.isArray(res.get('models') || res.models)) {
+          this.models = res.models || [];
+        } else if (res && res.models && Array.isArray(res.models)) {
+          this.models = res.models;
+        } else if (res && res.error) {
+          console.warn('models endpoint returned error', res.error);
           this.models = [];
         } else {
+          // try to coerce keys into string list
           try {
             this.models = Object.keys(res || {});
           } catch(e) {
@@ -55,7 +67,38 @@ export class QueryComponent implements OnInit {
 
   send() {
     this.loading = true;
-    this.svc.query(this.queryText).subscribe({
+    
+    if (this.useNlp) {
+      // Use NLP to generate SQL first
+      this.nlpService.nl2sql(this.queryText).subscribe({
+        next: (res) => {
+          this.generatedSql = res.sql;
+          // Then execute the generated SQL
+          this.executeSql(res.sql);
+        },
+        error: (err) => {
+          console.error('NLP conversion error', err);
+          this.loading = false;
+        }
+      });
+    } else {
+      // Direct SQL execution
+      this.svc.query(this.queryText).subscribe({
+        next: (res) => {
+          this.sql = res.sql;
+          this.results = res.rows || [];
+          this.loading = false;
+        },
+        error: (err) => {
+          console.error(err);
+          this.loading = false;
+        }
+      });
+    }
+  }
+
+  executeSql(sql: string) {
+    this.svc.query(sql).subscribe({
       next: (res) => {
         this.sql = res.sql;
         this.results = res.rows || [];
@@ -78,7 +121,7 @@ export class QueryComponent implements OnInit {
       this.svc.chat(this.queryText, [], this.selectedModel).subscribe({
         next: (res) => {
           // check for server-side 'load' status
-          if (res && res.raw && typeof res.raw === 'object' && (res.raw as any).done_reason === 'load') {
+          if (res && res.raw && typeof res.raw === 'object' && res.raw.done_reason === 'load') {
             this.retryCount++;
             this.loadingMessage = `模型正在加载，重试中 (${this.retryCount}/3)`;
             if (this.retryCount < 3) {
@@ -90,15 +133,15 @@ export class QueryComponent implements OnInit {
           }
 
           // if backend returns sql-like response, keep old behavior; else show as message
-          if (res && (res as any).sql) {
-            this.sql = (res as any).sql;
-            this.results = (res as any).rows || [];
-          } else if (res && (res as any).message) {
+          if (res && res.sql) {
+            this.sql = res.sql;
+            this.results = res.rows || [];
+          } else if (res && res.message) {
             this.sql = '';
-            this.results = [{ reply: (res as any).message }];
-          } else if (res && (res as any).text) {
+            this.results = [{ reply: res.message }];
+          } else if (res && res.text) {
             this.sql = '';
-            this.results = [{ reply: (res as any).text }];
+            this.results = [{ reply: res.text }];
           }
 
           this.loading = false;

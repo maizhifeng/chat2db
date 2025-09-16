@@ -1,0 +1,71 @@
+<div class="auth-container">
+  <div class="auth-form">
+    <h2>注册</h2>
+    <form (ngSubmit)="register()" #registerForm="ngForm">
+      <div class="form-group">
+        <label for="username">用户名:</label>
+        <input 
+          type="text" 
+          id="username" 
+          name="username" 
+          [(ngModel)]="username" 
+          required 
+          class="form-control"
+          placeholder="输入用户名">
+      </div>
+      
+      <div class="form-group">
+        <label for="email">邮箱:</label>
+        <input 
+          type="email" 
+          id="email" 
+          name="email" 
+          [(ngModel)]="email" 
+          required 
+          email
+          class="form-control"
+          placeholder="输入邮箱">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">密码:</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          [(ngModel)]="password" 
+          required 
+          minlength="6"
+          class="form-control"
+          placeholder="输入密码（至少6位）">
+      </div>
+      
+      <div class="form-group">
+        <label for="confirmPassword">确认密码:</label>
+        <input 
+          type="password" 
+          id="confirmPassword" 
+          name="confirmPassword" 
+          [(ngModel)]="confirmPassword" 
+          required 
+          class="form-control"
+          placeholder="再次输入密码">
+      </div>
+      
+      <div *ngIf="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+      
+      <button 
+        type="submit" 
+        [disabled]="!registerForm.form.valid || loading || password !== confirmPassword" 
+        class="btn btn-primary">
+        {{ loading ? '注册中...' : '注册' }}
+      </button>
+    </form>
+    
+    <div class="auth-links">
+      <p>已有账户? <a routerLink="/login">登录</a></p>
+    </div>
+  </div>
+</div>

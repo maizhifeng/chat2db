@@ -8,7 +8,7 @@ RUN npm ci --silent || npm install --silent
 
 # copy source and build
 COPY . ./
-RUN npm run build -- --configuration production || npm run build --configuration production
+RUN npm run build -- --configuration production
 
 # Stage for using a prebuilt dist directory (copy dist from build context)
 FROM nginx:stable-alpine AS prebuilt

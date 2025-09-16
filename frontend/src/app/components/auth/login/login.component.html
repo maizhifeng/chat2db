@@ -1,0 +1,45 @@
+<div class="auth-container">
+  <div class="auth-form">
+    <h2>登录</h2>
+    <form (ngSubmit)="login()" #loginForm="ngForm">
+      <div class="form-group">
+        <label for="username">用户名或邮箱:</label>
+        <input 
+          type="text" 
+          id="username" 
+          name="username" 
+          [(ngModel)]="username" 
+          required 
+          class="form-control"
+          placeholder="输入用户名或邮箱">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">密码:</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          [(ngModel)]="password" 
+          required 
+          class="form-control"
+          placeholder="输入密码">
+      </div>
+      
+      <div *ngIf="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+      
+      <button 
+        type="submit" 
+        [disabled]="!loginForm.form.valid || loading" 
+        class="btn btn-primary">
+        {{ loading ? '登录中...' : '登录' }}
+      </button>
+    </form>
+    
+    <div class="auth-links">
+      <p>还没有账户? <a routerLink="/register">注册</a></p>
+    </div>
+  </div>
+</div>

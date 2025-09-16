@@ -1,0 +1,20 @@
+<div class="container">
+  <nav class="navbar">
+    <h2>Chat2DB</h2>
+    <div class="nav-content">
+      <ul *ngIf="currentUser">
+        <li><a routerLink="/" routerLinkActive="active">查询</a></li>
+        <li><a routerLink="/connections" routerLinkActive="active">连接管理</a></li>
+        <li><a routerLink="/tables" routerLinkActive="active">表管理</a></li>
+      </ul>
+      <div class="user-info" *ngIf="currentUser">
+        <span>欢迎, {{ currentUser.username }}!</span>
+        <button (click)="logout()" class="btn btn-secondary">注销</button>
+      </div>
+    </div>
+  </nav>
+  
+  <div class="content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

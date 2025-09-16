@@ -1,15 +1,111 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
-import os
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
 import pandas as pd
 import re
 import requests
 import json
+from models import DatabaseConnection, create_tables, User, Role, UserRole
+from nlp_enhanced import enhanced_nlp
+from auth import init_auth_service
+import auth
 
 app = Flask(__name__)
 CORS(app)
 DB_PATH = os.environ.get('CHAT2DB_DB', '/data/chat2db.sqlite')
+
+# Initialize the database
+def init_db():
+    # Use SQLite for the main application database
+    engine = create_engine(f'sqlite:///{DB_PATH}')
+    create_tables(engine)
+    return engine
+
+# Get database engine based on connection type
+def get_db_engine(connection):
+    try:
+        if connection.type == 'sqlite':
+            return create_engine(f'sqlite:///{connection.database}')
+        elif connection.type == 'mysql':
+            return create_engine(f'mysql+pymysql://{connection.username}:{connection.password}@{connection.host}:{connection.port}/{connection.database}')
+        elif connection.type == 'postgresql':
+            return create_engine(f'postgresql://{connection.username}:{connection.password}@{connection.host}:{connection.port}/{connection.database}')
+        else:
+            raise ValueError(f"Unsupported database type: {connection.type}")
+    except Exception as e:
+        raise ValueError(f"Failed to create engine for {connection.type}: {str(e)}")
+
+# Create a session for the main app database
+app_engine = init_db()
+Session = sessionmaker(bind=app_engine)
+
+# Initialize auth service
+print("Before calling init_auth_service")
+init_auth_service(app_engine)
+print("After calling init_auth_service")
+
+# Check if auth_service is properly initialized
+print("Checking auth_service...")
+print(f"auth.auth_service = {auth.auth_service}")
+if auth.auth_service is None:
+    raise RuntimeError("Failed to initialize auth service")
+print("auth_service is properly initialized")
+
+# Authentication decorator
+def require_auth(f):
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({'error': 'Missing authorization header'}), 401
+        
+        try:
+            # Extract token from "Bearer <token>" format
+            token = auth_header.split(' ')[1]
+            user = auth.auth_service.get_user_by_token(token)
+            if not user:
+                return jsonify({'error': 'Invalid token'}), 401
+            # Add user to request context
+            request.user = user
+        except Exception as e:
+            return jsonify({'error': str(e)}), 401
+        
+        return f(*args, **kwargs)
+    wrapper.__name__ = f.__name__
+    return wrapper
+
+# Admin decorator
+def require_admin(f):
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({'error': 'Missing authorization header'}), 401
+        
+        try:
+            # Extract token from "Bearer <token>" format
+            token = auth_header.split(' ')[1]
+            user = auth.auth_service.get_user_by_token(token)
+            if not user:
+                return jsonify({'error': 'Invalid token'}), 401
+            
+            # Check if user has admin role
+            if not auth.auth_service.check_permission(user['id'], 'Administrator'):
+                return jsonify({'error': 'Insufficient permissions'}), 403
+                
+            # Add user to request context
+            request.user = user
+        except Exception as e:
+            return jsonify({'error': str(e)}), 401
+        
+        return f(*args, **kwargs)
+    wrapper.__name__ = f.__name__
+    return wrapper
 
 # very small NL->SQL converter: handles simple "show/count/list" intents for a single table 'employees'
 def nl_to_sql(nl_text):
@@ -30,6 +126,194 @@ def nl_to_sql(nl_text):
         return nl_text
     return "SELECT * FROM employees LIMIT 100"
 
+# User authentication APIs
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'missing data'}), 400
+    
+    required_fields = ['username', 'email', 'password']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'error': f'missing {field}'}), 400
+    
+    try:
+        user = auth.auth_service.create_user(
+            data['username'],
+            data['email'],
+            data['password']
+        )
+        return jsonify(user), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'missing data'}), 400
+    
+    required_fields = ['username', 'password']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'error': f'missing {field}'}), 400
+    
+    try:
+        result = auth.auth_service.authenticate_user(
+            data['username'],
+            data['password']
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
+
+@app.route('/api/auth/me', methods=['GET'])
+@require_auth
+def get_current_user():
+    return jsonify(request.user)
+
+# Database Connection Management APIs
+@app.route('/api/connections', methods=['POST'])
+@require_auth
+def create_connection():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'missing data'}), 400
+    
+    try:
+        session = Session()
+        connection = DatabaseConnection.from_dict(data)
+        session.add(connection)
+        session.commit()
+        session.refresh(connection)
+        return jsonify(connection.to_dict()), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/connections', methods=['GET'])
+@require_auth
+def get_connections():
+    try:
+        session = Session()
+        connections = session.query(DatabaseConnection).all()
+        return jsonify([conn.to_dict() for conn in connections])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/connections/<conn_id>', methods=['GET'])
+@require_auth
+def get_connection(conn_id):
+    try:
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+        return jsonify(connection.to_dict())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/connections/<conn_id>', methods=['PUT'])
+@require_auth
+def update_connection(conn_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'missing data'}), 400
+    
+    try:
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+            
+        # Update fields
+        for key, value in data.items():
+            if hasattr(connection, key):
+                setattr(connection, key, value)
+                
+        session.commit()
+        session.refresh(connection)
+        return jsonify(connection.to_dict())
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/connections/<conn_id>', methods=['DELETE'])
+@require_auth
+def delete_connection(conn_id):
+    try:
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+            
+        session.delete(connection)
+        session.commit()
+        return jsonify({'message': 'connection deleted'})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/connections/<conn_id>/test', methods=['POST'])
+@require_auth
+def test_connection(conn_id):
+    try:
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+            
+        # Create engine and test connection
+        engine = get_db_engine(connection)
+        # Try to connect
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return jsonify({'message': 'connection successful'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+# Enhanced query endpoint that supports multiple database types
+@app.route('/api/query/<conn_id>', methods=['POST'])
+@require_auth
+def query_with_connection(conn_id):
+    data = request.get_json()
+    if not data or 'query' not in data:
+        return jsonify({'error': 'missing query'}), 400
+    
+    nl = data['query']
+    sql = nl_to_sql(nl)
+    
+    try:
+        # Get the database connection
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+        session.close()
+        
+        # Create engine for the target database
+        engine = get_db_engine(connection)
+        
+        # Execute query
+        df = pd.read_sql_query(sql, engine)
+        rows = df.to_dict(orient='records')
+        return jsonify({'sql': sql, 'rows': rows})
+    except Exception as e:
+        return jsonify({'error': str(e), 'sql': sql}), 500
+
 @app.route('/api/query', methods=['POST'])
 def query():
     data = request.get_json()
@@ -49,6 +333,85 @@ def query():
             conn.close()
         except:
             pass
+
+# Enhanced NL2SQL endpoint
+@app.route('/api/nl2sql', methods=['POST'])
+def nl2sql():
+    data = request.get_json()
+    if not data or 'query' not in data:
+        return jsonify({'error': 'missing query'}), 400
+    
+    nl = data['query']
+    table = data.get('table')  # 可选的表名
+    
+    try:
+        # 使用增强的NLP模块
+        sql = enhanced_nlp.parse_nl_to_sql(nl, table)
+        return jsonify({'sql': sql})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Get tables for a specific connection
+@app.route('/api/connections/<conn_id>/tables', methods=['GET'])
+@require_auth
+def get_tables(conn_id):
+    try:
+        # Get the database connection
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+        session.close()
+        
+        # Create engine for the target database
+        engine = get_db_engine(connection)
+        
+        # Get table names
+        if connection.type == 'sqlite':
+            query = "SELECT name FROM sqlite_master WHERE type='table';"
+        elif connection.type == 'mysql':
+            query = f"SELECT table_name as name FROM information_schema.tables WHERE table_schema = '{connection.database}';"
+        elif connection.type == 'postgresql':
+            query = f"SELECT tablename as name FROM pg_tables WHERE schemaname = 'public';"
+        else:
+            return jsonify({'error': f'Unsupported database type: {connection.type}'}), 400
+            
+        df = pd.read_sql_query(query, engine)
+        tables = df['name'].tolist()
+        return jsonify(tables)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Get table schema for a specific table
+@app.route('/api/connections/<conn_id>/tables/<table_name>', methods=['GET'])
+@require_auth
+def get_table_schema(conn_id, table_name):
+    try:
+        # Get the database connection
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+        session.close()
+        
+        # Create engine for the target database
+        engine = get_db_engine(connection)
+        
+        # Get table schema
+        if connection.type == 'sqlite':
+            query = f"PRAGMA table_info({table_name});"
+        elif connection.type == 'mysql':
+            query = f"DESCRIBE {table_name};"
+        elif connection.type == 'postgresql':
+            query = f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table_name}' AND table_schema = 'public';"
+        else:
+            return jsonify({'error': f'Unsupported database type: {connection.type}'}), 400
+            
+        df = pd.read_sql_query(query, engine)
+        schema = df.to_dict(orient='records')
+        return jsonify(schema)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health():

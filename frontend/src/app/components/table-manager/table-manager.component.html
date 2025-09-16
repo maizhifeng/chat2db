@@ -1,0 +1,105 @@
+<div class="table-manager">
+  <h2>数据表管理</h2>
+  
+  <!-- Connection Selection -->
+  <div class="connection-selector" *ngIf="!selectedConnection">
+    <h3>选择数据库连接</h3>
+    <div *ngIf="connections.length === 0">
+      <p>暂无数据库连接，请先创建连接。</p>
+      <button routerLink="/connections" class="btn btn-primary">创建连接</button>
+    </div>
+    
+    <div *ngIf="connections.length > 0">
+      <div class="connection-list">
+        <div *ngFor="let conn of connections" class="connection-item" (click)="selectConnection(conn)">
+          <div class="connection-name">{{ conn.name }}</div>
+          <div class="connection-type">{{ conn.type }}</div>
+          <div class="connection-db">{{ conn.database }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Table List -->
+  <div class="table-list" *ngIf="selectedConnection">
+    <div class="header">
+      <h3>连接: {{ selectedConnection.name }}</h3>
+      <button (click)="clearConnection()" class="btn btn-secondary">切换连接</button>
+    </div>
+    
+    <div *ngIf="loadingTables" class="loading">加载中...</div>
+    
+    <div *ngIf="!loadingTables && tables.length === 0" class="no-tables">
+      <p>该数据库中没有找到表。</p>
+    </div>
+    
+    <div *ngIf="!loadingTables && tables.length > 0">
+      <h4>数据表</h4>
+      <div class="table-grid">
+        <div *ngFor="let table of tables" class="table-item" (click)="viewTable(table)">
+          <div class="table-name">{{ table }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Table Schema -->
+  <div class="table-schema" *ngIf="selectedTable">
+    <div class="header">
+      <h3>表: {{ selectedTable }}</h3>
+      <button (click)="clearTable()" class="btn btn-secondary">返回表列表</button>
+    </div>
+    
+    <div *ngIf="loadingSchema" class="loading">加载中...</div>
+    
+    <div *ngIf="!loadingSchema && schema.length > 0">
+      <h4>表结构</h4>
+      <table class="schema-table">
+        <thead>
+          <tr>
+            <th *ngFor="let col of schema[0] | keyvalue">{{ col.key }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of schema">
+            <td *ngFor="let col of row | keyvalue">{{ col.value }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="query-section">
+      <h4>查询数据</h4>
+      <textarea [(ngModel)]="queryText" placeholder="输入SQL查询语句..." rows="4" class="query-input"></textarea>
+      <div class="query-actions">
+        <button (click)="executeQuery()" [disabled]="!queryText" class="btn btn-primary">执行查询</button>
+        <button (click)="queryText='SELECT * FROM ' + selectedTable + ' LIMIT 100'" class="btn btn-secondary">查询所有数据</button>
+      </div>
+      
+      <div *ngIf="queryResult" class="query-result">
+        <h5>查询结果</h5>
+        <div *ngIf="queryResult.error" class="error">
+          错误: {{ queryResult.error }}
+        </div>
+        <div *ngIf="!queryResult.error && queryResult.rows.length > 0">
+          <p>返回 {{ queryResult.rows.length }} 条记录</p>
+          <table class="result-table">
+            <thead>
+              <tr>
+                <th *ngFor="let col of queryResult.rows[0] | keyvalue">{{ col.key }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of queryResult.rows">
+                <td *ngFor="let col of row | keyvalue">{{ col.value }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div *ngIf="!queryResult.error && queryResult.rows.length === 0">
+          <p>查询结果为空</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

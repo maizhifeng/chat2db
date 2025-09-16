@@ -1,0 +1,153 @@
+.table-manager {
+  padding: 20px;
+}
+
+.connection-selector h3, .table-list h3, .table-schema h3 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.connection-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.connection-item {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.connection-item:hover {
+  background-color: #f8f9fa;
+  border-color: #007bff;
+}
+
+.connection-name {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 5px;
+}
+
+.connection-type, .connection-db {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.btn {
+  padding: 6px 12px;
+  margin: 2px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.no-tables {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.table-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.table-item {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.table-item:hover {
+  background-color: #f8f9fa;
+  border-color: #007bff;
+}
+
+.table-name {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.schema-table, .result-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.schema-table th, .schema-table td, .result-table th, .result-table td {
+  padding: 8px;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+.schema-table th, .result-table th {
+  background-color: #f2f2f2;
+}
+
+.query-section {
+  margin-top: 30px;
+}
+
+.query-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  resize: vertical;
+}
+
+.query-actions {
+  margin: 10px 0;
+}
+
+.query-result {
+  margin-top: 20px;
+}
+
+.query-result .error {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 10px;
+  border-radius: 4px;
+}

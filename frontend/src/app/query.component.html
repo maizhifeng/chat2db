@@ -1,23 +1,34 @@
 <div class="chat2db">
   <h3>Chat2DB 简易演示</h3>
+  
+  <div class="query-options">
+    <label>
+      <input type="checkbox" [(ngModel)]="useNlp">
+      使用自然语言处理
+    </label>
+  </div>
+  
+  <textarea rows="3" cols="60" [(ngModel)]="queryText" placeholder="{{useNlp ? '例如: 显示所有员工' : '例如: SELECT * FROM employees'}}"></textarea>
+  <br>
 
-  <div style="margin-bottom:8px;">
-    <label>模型: </label>
-    <select [(ngModel)]="selectedModel">
+  <div style="margin-top:8px">
+    <label for="model">模型:</label>
+    <select id="model" [(ngModel)]="selectedModel">
       <option *ngFor="let m of models" [value]="m">{{m}}</option>
     </select>
     <button (click)="fetchModels()" [disabled]="loadingModels">刷新模型</button>
-    <span *ngIf="loadingModels">加载模型中...</span>
+    <button (click)="loadModelAndChat()" [disabled]="loading || !selectedModel">加载并发送</button>
+    <button (click)="send()" [disabled]="loading">发送</button>
   </div>
+  
+  <div *ngIf="useNlp && generatedSql" class="generated-sql">
+    <h4>生成的 SQL</h4>
+    <pre>{{generatedSql}}</pre>
+  </div>
+  
+  <div *ngIf="loadingMessage" style="margin-top:8px;color:#b04;">{{loadingMessage}}</div>
 
-  <textarea rows="3" cols="60" [(ngModel)]="queryText"></textarea>
-  <br>
-  <button (click)="send()" [disabled]="loading">发送</button>
-  <button (click)="loadModelAndChat()" [disabled]="loading || !selectedModel">加载并发送</button>
-
-  <div *ngIf="loadingMessage">{{loadingMessage}}</div>
-
-  <div *ngIf="sql">
+  <div *ngIf="sql && !useNlp">
     <h4>执行的 SQL</h4>
     <pre>{{sql}}</pre>
   </div>
