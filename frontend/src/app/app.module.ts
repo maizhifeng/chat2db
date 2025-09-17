@@ -14,6 +14,13 @@ import { AuthService } from './services/auth.service';
 import { LoginComponent } from './components/auth/login/login.component';
 import { RegisterComponent } from './components/auth/register/register.component';
 import { AppRoutingModule } from './app-routing.module';
+// 导入新组件
+import { DashboardComponent } from './components/dashboard/dashboard.component';
+import { AiAssistantComponent } from './components/ai-assistant/ai-assistant.component';
+import { SqlEditorComponent } from './components/sql-editor/sql-editor.component';
+import { DataBrowserComponent } from './components/data-browser/data-browser.component';
+// 导入新服务
+import { DatabaseService } from './services/database.service';
 
 @NgModule({
   declarations: [
@@ -22,7 +29,12 @@ import { AppRoutingModule } from './app-routing.module';
     ConnectionManagerComponent,
     TableManagerComponent,
     LoginComponent,
-    RegisterComponent
+    RegisterComponent,
+    // 声明新组件
+    DashboardComponent,
+    AiAssistantComponent,
+    SqlEditorComponent,
+    DataBrowserComponent
   ],
   imports: [
     BrowserModule, 
@@ -35,7 +47,8 @@ import { AppRoutingModule } from './app-routing.module';
     ConnectionService,
     TableService,
     NlpService,
-    AuthService
+    AuthService,
+    DatabaseService
   ],
   bootstrap: [AppComponent]
 })

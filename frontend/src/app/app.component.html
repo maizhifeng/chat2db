@@ -3,7 +3,11 @@
     <h2>Chat2DB</h2>
     <div class="nav-content">
       <ul *ngIf="currentUser">
-        <li><a routerLink="/" routerLinkActive="active">查询</a></li>
+        <li><a routerLink="/dashboard" routerLinkActive="active">控制台</a></li>
+        <li><a routerLink="/query" routerLinkActive="active">查询</a></li>
+        <li><a routerLink="/ai-assistant" routerLinkActive="active">AI助手</a></li>
+        <li><a routerLink="/sql-editor" routerLinkActive="active">SQL编辑器</a></li>
+        <li><a routerLink="/data-browser" routerLinkActive="active">数据浏览器</a></li>
         <li><a routerLink="/connections" routerLinkActive="active">连接管理</a></li>
         <li><a routerLink="/tables" routerLinkActive="active">表管理</a></li>
       </ul>

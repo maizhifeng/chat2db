@@ -1,0 +1,64 @@
+<div class="ai-assistant">
+  <div class="header">
+    <h2>AI数据库助手</h2>
+    <div class="model-selector">
+      <label for="model">AI模型:</label>
+      <select id="model" [(ngModel)]="selectedModel" [disabled]="loadingModels">
+        <option *ngFor="let model of models" [value]="model">{{ model }}</option>
+      </select>
+      <button (click)="loadModels()" [disabled]="loadingModels" class="btn btn-secondary">
+        {{ loadingModels ? '加载中...' : '刷新' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="chat-container">
+    <div #messagesContainer class="messages">
+      <div *ngFor="let message of messages" class="message" [ngClass]="'message-' + message.role">
+        <div class="message-header">
+          <span class="role">{{ message.role === 'user' ? '您' : 'AI助手' }}</span>
+          <span class="timestamp">{{ message.timestamp | date:'HH:mm:ss' }}</span>
+        </div>
+        <div class="message-content">
+          <pre *ngIf="message.content.startsWith('```sql')">{{ message.content }}</pre>
+          <span *ngIf="!message.content.startsWith('```sql')">{{ message.content }}</span>
+        </div>
+      </div>
+      
+      <!-- 添加加载指示器 -->
+      <div *ngIf="loading" class="message message-assistant loading-message">
+        <div class="message-header">
+          <span class="role">AI助手</span>
+          <span class="timestamp">{{ new Date() | date:'HH:mm:ss' }}</span>
+        </div>
+        <div class="message-content">
+          <div class="loading-indicator">
+            <span>{{ loadingMessage || '正在处理您的请求...' }}</span>
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加加载状态显示 -->
+    <div *ngIf="loadingMessage" class="loading-status">
+      {{ loadingMessage }}
+    </div>
+
+    <div class="input-area">
+      <textarea 
+        [(ngModel)]="userInput" 
+        (keydown.enter)="sendMessage()" 
+        placeholder="输入您的问题... (按Enter发送，Shift+Enter换行)"
+        rows="3"
+        [disabled]="loading">
+      </textarea>
+      <div class="input-actions">
+        <button (click)="clearChat()" class="btn btn-secondary">清空对话</button>
+        <button (click)="sendMessage()" [disabled]="!userInput.trim() || loading" class="btn btn-primary">
+          {{ loading ? '发送中...' : '发送' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -2,6 +2,15 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# 设置环境变量以解决SSL连接问题
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['REQUESTS_CA_BUNDLE'] = ''
+os.environ['HF_HUB_OFFLINE'] = '1'
+
+# 设置transformers库的离线模式
+import transformers
+transformers.utils.offline_mode = True
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
@@ -183,6 +192,16 @@ def create_connection():
     if not data:
         return jsonify({'error': 'missing data'}), 400
     
+    # Check if ID is provided, if not generate one
+    if not data.get('id'):
+        data['id'] = f"conn-{secrets.token_hex(8)}"
+    
+    # Validate required fields
+    required_fields = ['id', 'name', 'type', 'database']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'missing {field}'}), 400
+    
     try:
         session = Session()
         connection = DatabaseConnection.from_dict(data)
@@ -229,6 +248,10 @@ def update_connection(conn_id):
     if not data:
         return jsonify({'error': 'missing data'}), 400
     
+    # Validate conn_id parameter
+    if not conn_id or conn_id.strip() == '':
+        return jsonify({'error': 'connection id is required'}), 400
+    
     try:
         session = Session()
         connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
@@ -270,6 +293,10 @@ def delete_connection(conn_id):
 @app.route('/api/connections/<conn_id>/test', methods=['POST'])
 @require_auth
 def test_connection(conn_id):
+    # Validate conn_id parameter
+    if not conn_id or conn_id.strip() == '':
+        return jsonify({'error': 'connection id is required'}), 400
+    
     try:
         session = Session()
         connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
@@ -412,6 +439,74 @@ def get_table_schema(conn_id, table_name):
         df = pd.read_sql_query(query, engine)
         schema = df.to_dict(orient='records')
         return jsonify(schema)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Query table data for a specific table
+@app.route('/api/connections/<conn_id>/tables/<table_name>/query', methods=['POST'])
+@require_auth
+def query_table_data(conn_id, table_name):
+    try:
+        # Get request data
+        data = request.get_json() or {}
+        
+        # Get the database connection
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+        session.close()
+        
+        # Create engine for the target database
+        engine = get_db_engine(connection)
+        
+        # Build query with optional filters, sorting, and pagination
+        query = f"SELECT * FROM {table_name}"
+        
+        # Add filtering
+        filter_column = data.get('filterColumn')
+        filter_value = data.get('filterValue')
+        if filter_column and filter_value:
+            query += f" WHERE {filter_column} LIKE '%{filter_value}%'"
+        
+        # Add sorting
+        sort_by = data.get('sortBy')
+        sort_order = data.get('sortOrder', 'asc')
+        if sort_by:
+            query += f" ORDER BY {sort_by} {sort_order.upper()}"
+        
+        # Add pagination
+        page = data.get('page', 1)
+        page_size = data.get('pageSize', 50)
+        offset = (page - 1) * page_size
+        query += f" LIMIT {page_size} OFFSET {offset}"
+        
+        # Execute query
+        df = pd.read_sql_query(query, engine)
+        # Convert int64 to int for JSON serialization
+        rows = df.to_dict(orient='records')
+        for row in rows:
+            for key, value in row.items():
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    if pd.isna(value):
+                        row[key] = None
+                    else:
+                        row[key] = int(value) if value == int(value) else float(value)
+        
+        # Get total count for pagination
+        count_query = f"SELECT COUNT(*) as count FROM {table_name}"
+        if filter_column and filter_value:
+            count_query += f" WHERE {filter_column} LIKE '%{filter_value}%'"
+        
+        count_df = pd.read_sql_query(count_query, engine)
+        total_count = int(count_df['count'].iloc[0]) if not count_df.empty else 0
+        
+        return jsonify({
+            'data': rows,
+            'totalCount': total_count,
+            'page': page,
+            'pageSize': page_size
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -704,7 +799,10 @@ def encode_text():
         embeddings_model = EmbeddingsModel()
         # 编码文本
         embedding = embeddings_model.encode(data['text'])
-        return jsonify({'embedding': embedding.tolist()})
+        # 确保返回的是列表而不是numpy数组
+        if hasattr(embedding, 'tolist'):
+            embedding = embedding.tolist()
+        return jsonify({'embedding': embedding})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

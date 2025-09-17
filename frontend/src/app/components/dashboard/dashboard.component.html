@@ -1,0 +1,50 @@
+<div class="dashboard">
+  <div class="header">
+    <h1>Chat2DB 控制台</h1>
+    <div class="user-info">
+      <span>欢迎, {{ currentUser?.username }}!</span>
+      <button (click)="logout()" class="btn btn-secondary">注销</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card" (click)="navigateTo('connections')">
+      <div class="stat-value">{{ stats.connections }}</div>
+      <div class="stat-label">数据库连接</div>
+    </div>
+    <div class="stat-card" (click)="navigateTo('tables')">
+      <div class="stat-value">{{ stats.tables }}</div>
+      <div class="stat-label">数据表</div>
+    </div>
+    <div class="stat-card" (click)="navigateTo('query')">
+      <div class="stat-value">{{ stats.queries }}</div>
+      <div class="stat-label">查询次数</div>
+    </div>
+    <div class="stat-card" (click)="navigateTo('models')">
+      <div class="stat-value">{{ stats.models }}</div>
+      <div class="stat-label">AI模型</div>
+    </div>
+  </div>
+
+  <div class="quick-actions">
+    <h2>快速操作</h2>
+    <div class="actions-grid">
+      <button class="action-btn" (click)="navigateTo('connections')">
+        <i class="icon">🔗</i>
+        <span>管理连接</span>
+      </button>
+      <button class="action-btn" (click)="navigateTo('query')">
+        <i class="icon">🔍</i>
+        <span>执行查询</span>
+      </button>
+      <button class="action-btn" (click)="navigateTo('tables')">
+        <i class="icon">📊</i>
+        <span>浏览数据</span>
+      </button>
+      <button class="action-btn" (click)="navigateTo('ai-assistant')">
+        <i class="icon">🤖</i>
+        <span>AI助手</span>
+      </button>
+    </div>
+  </div>
+</div>

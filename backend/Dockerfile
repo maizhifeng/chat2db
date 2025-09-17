@@ -2,8 +2,13 @@ FROM python:3.11.13-trixie
 
 WORKDIR /app
 
-# 安装构建工具
-RUN apt-get update && apt-get install -y --no-install-recommends gcc git && rm -rf /var/lib/apt/lists/*
+# 安装构建工具和证书
+RUN apt-get update && apt-get install -y --no-install-recommends gcc git ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# 设置环境变量以解决SSL连接问题
+ENV CURL_CA_BUNDLE=""
+ENV REQUESTS_CA_BUNDLE=""
+ENV HF_HUB_OFFLINE="1"
 
 # 复制依赖文件并安装
 COPY requirements.txt /app/requirements.txt
