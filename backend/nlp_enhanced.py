@@ -1,18 +1,35 @@
 import re
 from typing import Dict, List, Tuple
+import numpy as np
+# 导入embeddings模块
+from embeddings.model import EmbeddingsModel
+from embeddings.similarity import cosine_similarity
 
 class EnhancedNLP:
     """
     增强的自然语言处理模块，用于将自然语言转换为SQL查询
     """
     
-    def __init__(self):
+    def __init__(self, embeddings_model=None):
+        # 初始化 Embeddings 模型
+        self.embeddings_model = embeddings_model or EmbeddingsModel()
+        
         # 定义关键词映射
         self.select_keywords = ['show', 'list', 'get', 'find', 'retrieve', 'display', 'select']
         self.count_keywords = ['count', 'how many', 'number of', 'total']
         self.insert_keywords = ['add', 'create', 'insert', 'new']
         self.update_keywords = ['update', 'modify', 'change', 'edit']
         self.delete_keywords = ['delete', 'remove', 'drop']
+        
+        # 预先计算各类意图的向量表示
+        self.count_intent_embeddings = self._precompute_intent_embeddings(self.count_keywords)
+        self.select_intent_embeddings = self._precompute_intent_embeddings(self.select_keywords)
+        self.insert_intent_embeddings = self._precompute_intent_embeddings(self.insert_keywords)
+        self.update_intent_embeddings = self._precompute_intent_embeddings(self.update_keywords)
+        self.delete_intent_embeddings = self._precompute_intent_embeddings(self.delete_keywords)
+        
+        # 相似度阈值
+        self.intent_threshold = 0.7
         
         # 定义操作符映射
         self.operators = {
@@ -46,28 +63,61 @@ class EnhancedNLP:
         """
         text = nl_text.strip().lower()
         
-        # 处理COUNT查询
-        if any(keyword in text for keyword in self.count_keywords):
-            return self._parse_count_query(text, table_name)
+        # 使用 Embeddings 模型计算查询的语义向量
+        query_embedding = self.embeddings_model.encode(nl_text)
         
-        # 处理SELECT查询
-        if any(keyword in text for keyword in self.select_keywords):
+        # 计算与各类操作关键词的相似度
+        count_similarity = self._calculate_similarity(query_embedding, self.count_intent_embeddings)
+        select_similarity = self._calculate_similarity(query_embedding, self.select_intent_embeddings)
+        insert_similarity = self._calculate_similarity(query_embedding, self.insert_intent_embeddings)
+        update_similarity = self._calculate_similarity(query_embedding, self.update_intent_embeddings)
+        delete_similarity = self._calculate_similarity(query_embedding, self.delete_intent_embeddings)
+        
+        # 根据相似度确定意图
+        intent_similarities = [
+            (count_similarity, 'count'),
+            (select_similarity, 'select'),
+            (insert_similarity, 'insert'),
+            (update_similarity, 'update'),
+            (delete_similarity, 'delete')
+        ]
+        
+        # 按相似度排序
+        intent_similarities.sort(key=lambda x: x[0], reverse=True)
+        best_similarity, best_intent = intent_similarities[0]
+        
+        # 根据相似度确定意图
+        if best_similarity > self.intent_threshold:
+            if best_intent == 'count':
+                return self._parse_count_query(text, table_name)
+            elif best_intent == 'select':
+                return self._parse_select_query(text, table_name)
+            elif best_intent == 'insert':
+                return self._parse_insert_query(text, table_name)
+            elif best_intent == 'update':
+                return self._parse_update_query(text, table_name)
+            elif best_intent == 'delete':
+                return self._parse_delete_query(text, table_name)
+        else:
+            # 默认返回简单的SELECT查询
             return self._parse_select_query(text, table_name)
-        
-        # 处理INSERT查询
-        if any(keyword in text for keyword in self.insert_keywords):
-            return self._parse_insert_query(text, table_name)
-        
-        # 处理UPDATE查询
-        if any(keyword in text for keyword in self.update_keywords):
-            return self._parse_update_query(text, table_name)
-        
-        # 处理DELETE查询
-        if any(keyword in text for keyword in self.delete_keywords):
-            return self._parse_delete_query(text, table_name)
-        
-        # 默认返回简单的SELECT查询
-        return self._parse_select_query(text, table_name)
+    
+    def _precompute_intent_embeddings(self, keywords):
+        """预先计算意图关键词的向量表示"""
+        embeddings = []
+        for keyword in keywords:
+            embedding = self.embeddings_model.encode(keyword)
+            embeddings.append(embedding)
+        return embeddings
+    
+    def _calculate_similarity(self, query_embedding, intent_embeddings):
+        """计算查询与意图向量的相似度"""
+        max_similarity = 0
+        for intent_embedding in intent_embeddings:
+            similarity = cosine_similarity(query_embedding, intent_embedding)
+            if similarity > max_similarity:
+                max_similarity = similarity
+        return max_similarity
     
     def _parse_count_query(self, text: str, table_name: str = None) -> str:
         """解析COUNT查询"""

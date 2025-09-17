@@ -16,6 +16,8 @@ from models import DatabaseConnection, create_tables, User, Role, UserRole
 from nlp_enhanced import enhanced_nlp
 from auth import init_auth_service
 import auth
+# 导入embeddings模块
+from embeddings.model import EmbeddingsModel
 
 app = Flask(__name__)
 CORS(app)
@@ -676,6 +678,64 @@ def models():
             last_err = str(e)
             continue
     return jsonify({'error': f'no models endpoint found: {last_err}'}), 500
+
+# Embeddings相关的API端点
+@app.route('/api/embeddings/encode', methods=['POST'])
+def encode_text():
+    """
+    将文本编码为向量
+    
+    请求体:
+    {
+        "text": "要编码的文本"
+    }
+    
+    返回:
+    {
+        "embedding": [0.1, 0.2, ...]  # 文本的向量表示
+    }
+    """
+    data = request.get_json()
+    if not data or 'text' not in data:
+        return jsonify({'error': 'missing text'}), 400
+    
+    try:
+        # 初始化 Embeddings 模型
+        embeddings_model = EmbeddingsModel()
+        # 编码文本
+        embedding = embeddings_model.encode(data['text'])
+        return jsonify({'embedding': embedding.tolist()})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/embeddings/similarity', methods=['POST'])
+def calculate_similarity():
+    """
+    计算两个文本的相似度
+    
+    请求体:
+    {
+        "text1": "第一个文本",
+        "text2": "第二个文本"
+    }
+    
+    返回:
+    {
+        "similarity": 0.85  # 两个文本的相似度
+    }
+    """
+    data = request.get_json()
+    if not data or 'text1' not in data or 'text2' not in data:
+        return jsonify({'error': 'missing text1 or text2'}), 400
+    
+    try:
+        # 初始化 Embeddings 模型
+        embeddings_model = EmbeddingsModel()
+        # 计算相似度
+        similarity = embeddings_model.similarity(data['text1'], data['text2'])
+        return jsonify({'similarity': float(similarity)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # bind to 0.0.0.0 so container exposes it
