@@ -1,0 +1,155 @@
+<div class="data-browser">
+  <div class="header">
+    <h2>数据浏览器</h2>
+  </div>
+
+  <div class="content">
+    <!-- 连接选择器 -->
+    <div class="connection-selector" *ngIf="!selectedConnection">
+      <h3>选择数据库连接</h3>
+      <div *ngIf="connections.length === 0 && !loading">
+        <p>暂无数据库连接，请先创建连接。</p>
+        <button class="btn btn-primary">创建连接</button>
+      </div>
+      
+      <div *ngIf="connections.length > 0" class="connections-grid">
+        <div 
+          *ngFor="let conn of connections" 
+          class="connection-card" 
+          (click)="selectConnection(conn)">
+          <div class="connection-name">{{ conn.name }}</div>
+          <div class="connection-type">{{ conn.type }}</div>
+          <div class="connection-details">
+            <span *ngIf="conn.host">{{ conn.host }}:{{ conn.port || 'default' }}</span>
+            <span *ngIf="conn.database">{{ conn.database }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表浏览器 -->
+    <div class="table-browser" *ngIf="selectedConnection">
+      <div class="browser-header">
+        <h3>连接: {{ selectedConnection.name }}</h3>
+        <button (click)="selectedConnection = null" class="btn btn-secondary">切换连接</button>
+      </div>
+
+      <div class="browser-content">
+        <!-- 表列表 -->
+        <div class="table-list">
+          <h4>数据表</h4>
+          <div *ngIf="loading && tables.length === 0" class="loading">加载中...</div>
+          <div *ngIf="!loading && tables.length === 0" class="no-tables">该连接中没有找到表</div>
+          
+          <div class="tables-grid">
+            <div 
+              *ngFor="let table of tables" 
+              class="table-item"
+              [class.active]="selectedTable === table"
+              (click)="selectTable(table)">
+              {{ table }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 表详情 -->
+        <div class="table-details" *ngIf="selectedTable">
+          <div class="details-header">
+            <h4>表: {{ selectedTable }}</h4>
+            <div class="details-actions">
+              <button (click)="exportTable()" class="btn btn-secondary">导出数据</button>
+            </div>
+          </div>
+
+          <!-- 表结构 -->
+          <div class="table-schema" *ngIf="tableSchema.length > 0">
+            <h5>表结构</h5>
+            <table class="schema-table">
+              <thead>
+                <tr>
+                  <th>列名</th>
+                  <th>数据类型</th>
+                  <th>可空</th>
+                  <th>主键</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let column of tableSchema">
+                  <td>{{ column.name }}</td>
+                  <td>{{ column.type }}</td>
+                  <td>{{ column.nullable ? '是' : '否' }}</td>
+                  <td>{{ column.primary_key ? '是' : '否' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 数据过滤和排序 -->
+          <div class="data-controls">
+            <div class="filter-controls">
+              <div class="filter-group">
+                <label>过滤列:</label>
+                <select [(ngModel)]="filterColumn">
+                  <option value="">选择列</option>
+                  <option *ngFor="let column of tableSchema" [value]="column.name">
+                    {{ column.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>过滤值:</label>
+                <input type="text" [(ngModel)]="filterValue" placeholder="输入过滤值">
+              </div>
+              <div class="filter-actions">
+                <button (click)="applyFilter()" class="btn btn-primary">应用</button>
+                <button (click)="clearFilter()" class="btn btn-secondary">清除</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 数据表格 -->
+          <div class="data-table-container">
+            <div *ngIf="loading" class="loading">加载数据中...</div>
+            <div *ngIf="error" class="error">错误: {{ error }}</div>
+            
+            <table class="data-table" *ngIf="!loading && !error && tableData.length > 0">
+              <thead>
+                <tr>
+                  <th *ngFor="let key of getObjectKeys(tableData[0])" (click)="sort(key)">
+                    {{ key }}
+                    <span *ngIf="sortBy === key" class="sort-indicator">
+                      {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of tableData">
+                  <td *ngFor="let key of getObjectKeys(row)">{{ row[key] }}</td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div *ngIf="!loading && !error && tableData.length === 0" class="no-data">
+              该表中没有数据
+            </div>
+          </div>
+
+          <!-- 分页控件 -->
+          <div class="pagination" *ngIf="tableData.length > 0">
+            <button (click)="prevPage()" [disabled]="currentPage === 1" class="btn btn-secondary">
+              上一页
+            </button>
+            <span class="page-info">
+              第 {{ currentPage }} 页，共 {{ Math.ceil(totalCount / pageSize) }} 页
+              (显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalCount) }} 条，共 {{ totalCount }} 条)
+            </span>
+            <button (click)="nextPage()" [disabled]="currentPage * pageSize >= totalCount" class="btn btn-secondary">
+              下一页
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

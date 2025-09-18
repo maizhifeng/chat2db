@@ -2,7 +2,16 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, request, jsonify
+# 设置环境变量以解决SSL连接问题
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['REQUESTS_CA_BUNDLE'] = ''
+os.environ['HF_HUB_OFFLINE'] = '1'
+
+# 设置transformers库的离线模式
+import transformers
+transformers.utils.offline_mode = True
+
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import sqlite3
 from sqlalchemy import create_engine, text
@@ -18,6 +27,7 @@ from auth import init_auth_service
 import auth
 # 导入embeddings模块
 from embeddings.model import EmbeddingsModel
+import secrets
 
 app = Flask(__name__)
 CORS(app)
@@ -183,6 +193,16 @@ def create_connection():
     if not data:
         return jsonify({'error': 'missing data'}), 400
     
+    # Check if ID is provided, if not generate one
+    if not data.get('id'):
+        data['id'] = f"conn-{secrets.token_hex(8)}"
+    
+    # Validate required fields
+    required_fields = ['id', 'name', 'type', 'database']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'missing {field}'}), 400
+    
     try:
         session = Session()
         connection = DatabaseConnection.from_dict(data)
@@ -229,6 +249,10 @@ def update_connection(conn_id):
     if not data:
         return jsonify({'error': 'missing data'}), 400
     
+    # Validate conn_id parameter
+    if not conn_id or conn_id.strip() == '':
+        return jsonify({'error': 'connection id is required'}), 400
+    
     try:
         session = Session()
         connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
@@ -270,6 +294,10 @@ def delete_connection(conn_id):
 @app.route('/api/connections/<conn_id>/test', methods=['POST'])
 @require_auth
 def test_connection(conn_id):
+    # Validate conn_id parameter
+    if not conn_id or conn_id.strip() == '':
+        return jsonify({'error': 'connection id is required'}), 400
+    
     try:
         session = Session()
         connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
@@ -415,6 +443,74 @@ def get_table_schema(conn_id, table_name):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Query table data for a specific table
+@app.route('/api/connections/<conn_id>/tables/<table_name>/query', methods=['POST'])
+@require_auth
+def query_table_data(conn_id, table_name):
+    try:
+        # Get request data
+        data = request.get_json() or {}
+        
+        # Get the database connection
+        session = Session()
+        connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
+        if not connection:
+            return jsonify({'error': 'connection not found'}), 404
+        session.close()
+        
+        # Create engine for the target database
+        engine = get_db_engine(connection)
+        
+        # Build query with optional filters, sorting, and pagination
+        query = f"SELECT * FROM {table_name}"
+        
+        # Add filtering
+        filter_column = data.get('filterColumn')
+        filter_value = data.get('filterValue')
+        if filter_column and filter_value:
+            query += f" WHERE {filter_column} LIKE '%{filter_value}%'"
+        
+        # Add sorting
+        sort_by = data.get('sortBy')
+        sort_order = data.get('sortOrder', 'asc')
+        if sort_by:
+            query += f" ORDER BY {sort_by} {sort_order.upper()}"
+        
+        # Add pagination
+        page = data.get('page', 1)
+        page_size = data.get('pageSize', 50)
+        offset = (page - 1) * page_size
+        query += f" LIMIT {page_size} OFFSET {offset}"
+        
+        # Execute query
+        df = pd.read_sql_query(query, engine)
+        # Convert int64 to int for JSON serialization
+        rows = df.to_dict(orient='records')
+        for row in rows:
+            for key, value in row.items():
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    if pd.isna(value):
+                        row[key] = None
+                    else:
+                        row[key] = int(value) if value == int(value) else float(value)
+        
+        # Get total count for pagination
+        count_query = f"SELECT COUNT(*) as count FROM {table_name}"
+        if filter_column and filter_value:
+            count_query += f" WHERE {filter_column} LIKE '%{filter_value}%'"
+        
+        count_df = pd.read_sql_query(count_query, engine)
+        total_count = int(count_df['count'].iloc[0]) if not count_df.empty else 0
+        
+        return jsonify({
+            'data': rows,
+            'totalCount': total_count,
+            'page': page,
+            'pageSize': page_size
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status':'ok'})
@@ -426,209 +522,258 @@ OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama2')
 
 def call_ollama(prompt, model=None, timeout=30):
     model = model or OLLAMA_MODEL
-    # Try several candidate generate endpoints and payload shapes
-    endpoints = [
-        '/api/generate',
-        '/api/completions',
-        '/v1/generate',
-        '/v1/completions',
-        '/api/chat',
-        '/generate'
-    ]
-
-    # candidate payload shapes: messages (role/content), prompt string, input field
-    payloads = [
-        {"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 512},
-        {"model": model, "prompt": prompt, "max_tokens": 512},
-        {"model": model, "input": prompt, "max_tokens": 512}
-    ]
-
-    last_err = None
-    headers = {'Content-Type': 'application/json'}
-    for ep in endpoints:
-        url = f"{OLLAMA_URL}{ep}"
-        for payload in payloads:
-            try:
-                r = requests.post(url, json=payload, timeout=timeout, headers=headers)
-                if r.status_code == 404:
-                    last_err = f'404 from {url}'
-                    break
-                # Some endpoints may reject method; treat 405 specially
-                if r.status_code == 405:
-                    last_err = f'405 from {url}'
-                    break
-                r.raise_for_status()
-                # try to parse common response shapes and extract text
-                try:
-                    j = r.json()
-                except Exception:
-                    return {'text': r.text}
-
-                # Common patterns: choices, outputs, text, result, generation
-                if isinstance(j, dict):
-                    # Ollama newer API may return {'outputs':[{'type':'message','content':[{'type':'output_text','text':'...'}]}]}
-                    if 'outputs' in j and isinstance(j['outputs'], list) and len(j['outputs'])>0:
-                        out = j['outputs'][0]
-                        # try nested content
-                        if isinstance(out, dict) and 'content' in out:
-                            content = out['content']
-                            if isinstance(content, list) and len(content)>0 and isinstance(content[0], dict):
-                                # look for 'text' or 'content'
-                                for c in content:
-                                    if isinstance(c, dict) and ('text' in c or 'content' in c):
-                                        return {'text': c.get('text') or c.get('content')}
-                            elif isinstance(content, str):
-                                return {'text': content}
-                    if 'choices' in j and isinstance(j['choices'], list) and len(j['choices'])>0:
-                        ch = j['choices'][0]
-                        if isinstance(ch, dict) and ('text' in ch or 'message' in ch):
-                            return {'text': ch.get('text') or ch.get('message')}
-                    if 'text' in j and isinstance(j['text'], str):
-                        return {'text': j['text']}
-                    if 'result' in j and isinstance(j['result'], str):
-                        return {'text': j['result']}
-                    # direct generation field
-                    if 'generation' in j:
-                        gen = j['generation']
-                        if isinstance(gen, list) and len(gen)>0 and isinstance(gen[0], dict):
-                            if 'text' in gen[0]:
-                                return {'text': gen[0]['text']}
-                # fallback: stringify
-                return {'text': json.dumps(j)}
-            except Exception as e:
-                last_err = str(e)
-                continue
-    # If POST attempts failed, try GET fallback (some deployments may accept query params)
-    try:
-        for ep in endpoints:
-            params = {'model': model, 'prompt': prompt}
-            url = f"{OLLAMA_URL}{ep}"
-            try:
-                r = requests.get(url, params=params, timeout=timeout)
-                if r.status_code in (404, 405):
-                    last_err = f'{r.status_code} from {url}'
-                    continue
-                r.raise_for_status()
-                try:
-                    j = r.json()
-                    # try to extract text similar to above
-                    if isinstance(j, dict) and 'text' in j:
-                        return {'text': j['text']}
-                    return {'text': json.dumps(j)}
-                except Exception:
-                    return {'text': r.text}
-            except Exception as e:
-                last_err = str(e)
-                continue
-    except Exception:
-        pass
-
-    # Prefer the official streaming NDJSON endpoint /api/generate
+    print(f"Calling Ollama with prompt: {prompt[:100]}... and model: {model}")  # 添加调试信息
+    # Try the official streaming NDJSON endpoint /api/generate
     gen_url = f"{OLLAMA_URL}/api/generate"
     try:
         # Increase read timeout for large-model generation and allow streaming NDJSON
         headers_stream = {'Accept': 'application/x-ndjson', 'Content-Type': 'application/json'}
         # use a longer read timeout (connect timeout short, read timeout long)
-        with requests.post(gen_url, json={"model": model, "prompt": prompt, "options": {"num_predict": 64}}, headers=headers_stream, stream=True, timeout=(5, 300)) as resp:
+        payload = {"model": model, "prompt": prompt, "stream": False}  # 先尝试非流式
+        with requests.post(gen_url, json=payload, headers=headers_stream, timeout=(5, 300)) as resp:
+            print(f"Non-streaming request to {gen_url}, status: {resp.status_code}")  # 添加调试信息
             if resp.status_code not in (404, 405):
                 resp.raise_for_status()
+                j = resp.json()
+                print(f"Non-streaming response: {j}")  # 添加调试信息
+                # Check if this is a "load" response and try streaming if so
+                if j.get('done_reason') == 'load':
+                    print("Model is loading, trying streaming...")  # 添加调试信息
+                    # Try streaming instead
+                    return call_ollama_streaming(gen_url, model, prompt, headers_stream, timeout)
+                if 'response' in j and isinstance(j['response'], str):
+                    return {'text': j['response']}
+                # fallback: stringify
+                return {'text': json.dumps(j)}
+    except Exception as e:
+        print(f"Non-streaming exception: {str(e)}")  # 添加调试信息
+        # If non-streaming failed, try streaming
+        pass
+
+    # Fallback to streaming
+    return call_ollama_streaming(gen_url, model, prompt, headers_stream, timeout)
+
+def call_ollama_streaming(gen_url, model, prompt, headers_stream, timeout):
+    """Handle streaming responses from Ollama"""
+    try:
+        with requests.post(gen_url, json={"model": model, "prompt": prompt, "stream": True}, headers=headers_stream, stream=True, timeout=(5,300)) as resp:
+            print(f"Streaming request to {gen_url}, status: {resp.status_code}")  # 添加调试信息
+            if resp.status_code not in (404, 405):
+                resp.raise_for_status()
+                full_response = ""
                 # read NDJSON lines and parse the first meaningful GenerateResponse
                 for raw in resp.iter_lines(decode_unicode=True):
                     if not raw:
                         continue
                     try:
                         j = json.loads(raw)
-                    except Exception:
+                        print(f"Streaming response line: {j}")  # 添加调试信息
+                    except Exception as e:
+                        print(f"JSON parsing error: {str(e)}")  # 添加调试信息
                         # return raw chunk as fallback
                         return {'text': raw}
                     # Ollama GenerateResponse uses field 'response'
                     if isinstance(j, dict):
                         if 'response' in j and isinstance(j['response'], str):
-                            return {'text': j['response']}
-                        if 'message' in j and isinstance(j['message'], dict):
+                            full_response += j['response']
+                        elif 'message' in j and isinstance(j['message'], dict):
                             # Chat style response
                             msg = j['message']
                             if isinstance(msg, dict) and 'content' in msg:
-                                return {'text': msg.get('content')}
-                        # fallback: stringify
-                        return {'text': json.dumps(j)}
+                                full_response += msg.get('content', '')
+                        # If we have a done response with content, return it
+                        if j.get('done') and full_response:
+                            return {'text': full_response}
+                # If we've collected a response, return it
+                if full_response:
+                    return {'text': full_response}
+                # fallback: stringify
+                return {'text': 'No response from model'}
     except Exception as e:
         last_err = str(e)
-
-    # Fallback: try the chat streaming endpoint (/api/chat) which accepts ChatRequest
-    chat_url = f"{OLLAMA_URL}/api/chat"
-    try:
-        headers_stream = {'Accept': 'application/x-ndjson', 'Content-Type': 'application/json'}
-        chat_payload = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": True}
-        with requests.post(chat_url, json=chat_payload, headers=headers_stream, stream=True, timeout=(5,300)) as resp:
-            if resp.status_code not in (404, 405):
-                resp.raise_for_status()
-                for raw in resp.iter_lines(decode_unicode=True):
-                    if not raw:
-                        continue
-                    try:
-                        j = json.loads(raw)
-                    except Exception:
-                        return {'text': raw}
-                    if isinstance(j, dict):
-                        # ChatResponse has Message with Content
-                        if 'message' in j and isinstance(j['message'], dict):
-                            msg = j['message']
-                            if 'content' in msg:
-                                return {'text': msg.get('content')}
-                        if 'response' in j:
-                            return {'text': j['response']}
-                        return {'text': json.dumps(j)}
-    except Exception as e:
-        last_err = str(e)
-
-    # If streaming /api/generate didn't work, fall back to previous attempts
-    return {'error': f'no working Ollama generate endpoint found: {last_err}'}
-
+        print(f"Streaming exception: {last_err}")  # 添加调试信息
+        return {'error': f'Error in streaming: {last_err}'}
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    data = request.get_json() or {}
-    message = data.get('message')
-    model = data.get('model')
-    history = data.get('history', [])
-    if not message:
-        return jsonify({'error': 'missing message'}), 400
+    try:
+        data = request.get_json() or {}
+        print(f"Received chat request with data: {data}")  # 添加调试信息
+        
+        message = data.get('message')
+        model = data.get('model')
+        history = data.get('history', [])
+        stream = data.get('stream', False)  # 添加stream参数
+        
+        if not message:
+            print("Missing message in request")  # 添加调试信息
+            return jsonify({'error': 'missing message'}), 400
 
-    # Build a simple prompt with optional history
-    prompt_parts = []
-    for turn in history:
-        # expect turns like {"role":"user"/"assistant","text":"..."}
-        role = turn.get('role', 'user')
-        text = turn.get('text', '')
-        prompt_parts.append(f"{role}: {text}")
-    prompt_parts.append(f"user: {message}")
-    prompt = "\n".join(prompt_parts) + "\nassistant:"
+        # Build a simple prompt with optional history
+        prompt_parts = []
+        
+        # Add system instruction for structured output
+        system_instruction = """You are a database assistant. Please structure your responses in the following format:
+[THINKING_PROCESS]
+First, explain your thought process and reasoning steps clearly.
+[/THINKING_PROCESS]
 
-    # allow caller to specify model to use
-    resp = call_ollama(prompt, model=model)
-    # If Ollama returned error, pass back
-    if 'error' in resp:
-        return jsonify({'error': resp['error']}), 500
+[RESPONSE_CONTENT]
+Then, provide your final response to the user's question.
+[/RESPONSE_CONTENT]
 
-    # Ollama's response shape may vary; return raw content when possible
-    # Common response may include 'choices' or 'text'
-    result_text = None
-    if isinstance(resp, dict):
-        if 'choices' in resp and isinstance(resp['choices'], list) and len(resp['choices'])>0:
-            c = resp['choices'][0]
-            result_text = c.get('text') or c.get('content') or json.dumps(c)
-        elif 'text' in resp:
-            result_text = resp['text']
-        elif 'output' in resp:
-            result_text = resp['output']
+Example:
+[THINKING_PROCESS]
+I need to analyze the user's question and consider relevant database information...
+[/THINKING_PROCESS]
+
+[RESPONSE_CONTENT]
+Based on your question, I recommend...
+[/RESPONSE_CONTENT]
+
+Always follow this exact format. Do not skip either section."""
+        
+        prompt_parts.append(system_instruction)
+        
+        for turn in history:
+            # expect turns like {"role":"user"/"assistant","text":"..."}
+            role = turn.get('role', 'user')
+            text = turn.get('text', '')
+            prompt_parts.append(f"{role}: {text}")
+        prompt_parts.append(f"user: {message}")
+        prompt = "\n".join(prompt_parts) + "\nassistant:"
+        print(f"Generated prompt: {prompt}")  # 添加调试信息
+
+        # If streaming is requested, return a streaming response
+        if stream:
+            print(f"Streaming chat response for model: {model}")  # 添加调试信息
+            return stream_ollama_response(prompt, model=model)
+        
+        # Otherwise, use the existing logic for non-streaming
+        print(f"Calling Ollama with model: {model}")  # 添加调试信息
+        resp = call_ollama(prompt, model=model)
+        print(f"Ollama response: {resp}")  # 添加调试信息
+        
+        # If Ollama returned error, pass back
+        if resp and 'error' in resp:
+            print(f"Ollama returned error: {resp['error']}")  # 添加调试信息
+            return jsonify({'error': resp['error']}), 500
+
+        # Ollama's response shape may vary; return raw content when possible
+        # Common response may include 'choices' or 'text'
+        result_text = None
+        if isinstance(resp, dict):
+            if 'choices' in resp and isinstance(resp['choices'], list) and len(resp['choices'])>0:
+                c = resp['choices'][0]
+                result_text = c.get('text') or c.get('content') or json.dumps(c)
+            elif 'text' in resp:
+                result_text = resp['text']
+            elif 'output' in resp:
+                result_text = resp['output']
+            else:
+                result_text = json.dumps(resp)
         else:
-            result_text = json.dumps(resp)
-    else:
-        result_text = str(resp)
+            result_text = str(resp)
+        
+        print(f"Returning result: {result_text}")  # 添加调试信息
+        return jsonify({'message': result_text, 'raw': resp})
+    except Exception as e:
+        print(f"Exception in chat endpoint: {str(e)}")  # 添加调试信息
+        import traceback
+        traceback.print_exc()  # 打印完整的错误堆栈
+        return jsonify({'error': str(e)}), 500
 
-    return jsonify({'message': result_text, 'raw': resp})
-
+def stream_ollama_response(prompt, model=None, timeout=30):
+    """Stream responses from Ollama"""
+    model = model or OLLAMA_MODEL
+    gen_url = f"{OLLAMA_URL}/api/generate"
+    
+    # Define a generator function for streaming
+    def generate():
+        try:
+            headers = {'Accept': 'application/x-ndjson', 'Content-Type': 'application/json'}
+            payload = {"model": model, "prompt": prompt, "stream": True}
+            
+            print(f"Starting streaming request to {gen_url}")  # 添加调试信息
+            
+            with requests.post(gen_url, json=payload, headers=headers, stream=True, timeout=(5, 300)) as resp:
+                print(f"Streaming response status: {resp.status_code}")  # 添加调试信息
+                
+                if resp.status_code not in (404, 405):
+                    resp.raise_for_status()
+                    
+                    # Send the initial SSE message
+                    yield f"data: {json.dumps({'status': 'connected'})}\n\n"
+                    
+                    # Send thinking status to indicate the model is processing
+                    yield f"data: {json.dumps({'status': 'thinking', 'message': 'AI正在思考中...'})}\n\n"
+                    
+                    full_response = ""
+                    response_started = False
+                    
+                    # Stream the response
+                    for raw in resp.iter_lines(decode_unicode=True):
+                        if not raw:
+                            continue
+                        try:
+                            j = json.loads(raw)
+                            print(f"Streaming response line: {j}")  # 添加调试信息
+                            
+                            # Handle different types of responses
+                            if isinstance(j, dict):
+                                # Check if this is a done message
+                                if j.get('done', False):
+                                    # Send final result
+                                    if full_response:
+                                        yield f"data: {json.dumps({'status': 'result', 'response': full_response})}\n\n"
+                                    yield "data: [DONE]\n\n"
+                                    break
+                                # Collect response content
+                                elif 'response' in j and isinstance(j['response'], str):
+                                    # Start collecting actual response
+                                    if not response_started:
+                                        response_started = True
+                                        yield f"data: {json.dumps({'status': 'responding', 'message': 'AI正在回答中...'})}\n\n"
+                                    
+                                    full_response += j['response']
+                                    # Send incremental response
+                                    yield f"data: {json.dumps({'status': 'chunk', 'response': j['response']})}\n\n"
+                                elif 'message' in j and isinstance(j['message'], dict):
+                                    # Chat style response
+                                    msg = j['message']
+                                    if isinstance(msg, dict) and 'content' in msg:
+                                        content = msg.get('content', '')
+                                        if content:
+                                            # Start collecting actual response
+                                            if not response_started:
+                                                response_started = True
+                                                yield f"data: {json.dumps({'status': 'responding', 'message': 'AI正在回答中...'})}\n\n"
+                                            
+                                            full_response += content
+                                            # Send incremental response
+                                            yield f"data: {json.dumps({'status': 'chunk', 'response': content})}\n\n"
+                                else:
+                                    # Send other status messages as-is
+                                    yield f"data: {json.dumps(j)}\n\n"
+                            else:
+                                # Send non-dict responses as-is
+                                yield f"data: {json.dumps({'raw': str(j)})}\n\n"
+                                
+                        except Exception as e:
+                            print(f"Error processing streaming response: {str(e)}")  # 添加调试信息
+                            yield f"data: {json.dumps({'error': f'Error processing response: {str(e)}'})}\n\n"
+                            break
+                else:
+                    error_msg = f"Error connecting to Ollama: {resp.status_code}"
+                    print(error_msg)  # 添加调试信息
+                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+        except Exception as e:
+            error_msg = f"Error in streaming: {str(e)}"
+            print(error_msg)  # 添加调试信息
+            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+    
+    # Return a Response object with the generator, setting the proper content type for SSE
+    return Response(generate(), mimetype='text/event-stream')
 
 @app.route('/api/models', methods=['GET'])
 def models():
@@ -704,7 +849,10 @@ def encode_text():
         embeddings_model = EmbeddingsModel()
         # 编码文本
         embedding = embeddings_model.encode(data['text'])
-        return jsonify({'embedding': embedding.tolist()})
+        # 确保返回的是列表而不是numpy数组
+        if hasattr(embedding, 'tolist'):
+            embedding = embedding.tolist()
+        return jsonify({'embedding': embedding})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

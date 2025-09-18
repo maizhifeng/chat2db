@@ -8,34 +8,41 @@
     </label>
   </div>
   
-  <textarea rows="3" cols="60" [(ngModel)]="queryText" placeholder="{{useNlp ? '例如: 显示所有员工' : '例如: SELECT * FROM employees'}}"></textarea>
-  <br>
+  <textarea [(ngModel)]="queryText" placeholder="{{useNlp ? '例如: 显示所有员工' : '例如: SELECT * FROM employees'}}"></textarea>
 
-  <div style="margin-top:8px">
+  <div class="model-selector">
     <label for="model">模型:</label>
     <select id="model" [(ngModel)]="selectedModel">
       <option *ngFor="let m of models" [value]="m">{{m}}</option>
     </select>
-    <button (click)="fetchModels()" [disabled]="loadingModels">刷新模型</button>
+    <button (click)="fetchModels()" [disabled]="loadingModels" class="secondary">
+      {{loadingModels ? '加载中...' : '刷新模型'}}
+    </button>
+  </div>
+  
+  <div class="action-buttons">
     <button (click)="loadModelAndChat()" [disabled]="loading || !selectedModel">加载并发送</button>
     <button (click)="send()" [disabled]="loading">发送</button>
   </div>
   
-  <div *ngIf="useNlp && generatedSql" class="generated-sql">
+  <div *ngIf="useNlp && generatedSql" class="results-container">
     <h4>生成的 SQL</h4>
     <pre>{{generatedSql}}</pre>
   </div>
   
-  <div *ngIf="loadingMessage" style="margin-top:8px;color:#b04;">{{loadingMessage}}</div>
+  <div *ngIf="loadingMessage" class="loading-message">
+    <div class="loading-spinner"></div>
+    <span>{{loadingMessage}}</span>
+  </div>
 
-  <div *ngIf="sql && !useNlp">
+  <div *ngIf="sql && !useNlp" class="results-container">
     <h4>执行的 SQL</h4>
     <pre>{{sql}}</pre>
   </div>
 
-  <div *ngIf="results.length">
+  <div *ngIf="results.length" class="results-container">
     <h4>结果（最多 100 条）</h4>
-    <table border="1">
+    <table>
       <thead>
         <tr>
           <th *ngFor="let k of (results[0] | keyvalue)">{{k.key}}</th>

@@ -1,20 +1,22 @@
-<div class="container">
-  <nav class="navbar">
-    <h2>Chat2DB</h2>
-    <div class="nav-content">
-      <ul *ngIf="currentUser">
-        <li><a routerLink="/" routerLinkActive="active">查询</a></li>
-        <li><a routerLink="/connections" routerLinkActive="active">连接管理</a></li>
-        <li><a routerLink="/tables" routerLinkActive="active">表管理</a></li>
-      </ul>
-      <div class="user-info" *ngIf="currentUser">
-        <span>欢迎, {{ currentUser.username }}!</span>
-        <button (click)="logout()" class="btn btn-secondary">注销</button>
-      </div>
-    </div>
-  </nav>
+<mat-toolbar color="primary" class="app-toolbar">
+  <span>Chat2DB</span>
+  <nav *ngIf="currentUser" class="nav-links">
+    <a mat-button routerLink="/dashboard" routerLinkActive="active">控制台</a>
+    <a mat-button routerLink="/query" routerLinkActive="active">查询</a>
+    <a mat-button routerLink="/ai-assistant" routerLinkActive="active">AI助手</a>
   
-  <div class="content">
-    <router-outlet></router-outlet>
+  <a mat-button routerLink="/sql-editor" routerLinkActive="active">SQL编辑器</a>
+    <a mat-button routerLink="/data-browser" routerLinkActive="active">数据浏览器</a>
+    <a mat-button routerLink="/connections" routerLinkActive="active">连接管理</a>
+    <a mat-button routerLink="/tables" routerLinkActive="active">表管理</a>
+  </nav>
+  <span class="spacer"></span>
+  <div class="user-info" *ngIf="currentUser">
+    <span>欢迎, {{ currentUser.username }}!</span>
+    <button mat-raised-button color="accent" (click)="logout()">注销</button>
   </div>
+</mat-toolbar>
+
+<div class="content">
+  <router-outlet></router-outlet>
 </div>

@@ -31,24 +31,40 @@ export class ConnectionService {
   // Get a specific database connection by ID
   getConnection(id: string): Observable<DatabaseConnection> {
     const headers = this.getAuthHeaders();
+    // Check if ID is valid
+    if (!id) {
+      throw new Error('Connection ID is required');
+    }
     return this.http.get<DatabaseConnection>(`${this.base}/connections/${id}`, { headers });
   }
 
   // Update a database connection
   updateConnection(id: string, connection: DatabaseConnection): Observable<DatabaseConnection> {
     const headers = this.getAuthHeaders();
+    // Check if ID is valid
+    if (!id) {
+      throw new Error('Connection ID is required');
+    }
     return this.http.put<DatabaseConnection>(`${this.base}/connections/${id}`, connection, { headers });
   }
 
   // Delete a database connection
   deleteConnection(id: string): Observable<any> {
     const headers = this.getAuthHeaders();
+    // Check if ID is valid
+    if (!id) {
+      throw new Error('Connection ID is required');
+    }
     return this.http.delete(`${this.base}/connections/${id}`, { headers });
   }
 
   // Test a database connection
   testConnection(id: string): Observable<any> {
     const headers = this.getAuthHeaders();
+    // Check if ID is valid
+    if (!id) {
+      throw new Error('Connection ID is required');
+    }
     return this.http.post(`${this.base}/connections/${id}/test`, {}, { headers });
   }
 

@@ -5,54 +5,35 @@ services:
       dockerfile: Dockerfile
     container_name: chat2db_backend
     volumes:
-      - ./backend:/app
       - ./data:/data
     ports:
       - "5001:5001"
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=production
       - OLLAMA_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=llama2
+      - CURL_CA_BUNDLE=
+      - REQUESTS_CA_BUNDLE=
+      - HF_HUB_OFFLINE=1
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - chat2db_net
+    restart: unless-stopped
 
-  # frontend 占位：你可以把 Angular 的构建产物放到 ./frontend_dist 并通过简单的 nginx 服务托管
-  nginx:
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      # By default we use the 'production' target which builds inside the image.
-      # To use a prebuilt dist (copy ./frontend/dist into image), set the env var
-      # FRONTEND_BUILD_TARGET=prebuilt when running docker-compose build.
-      target: ${FRONTEND_BUILD_TARGET:-production}
-    container_name: chat2db_nginx
+      target: production
+    container_name: chat2db_frontend
     depends_on:
       - backend
+    ports:
+      - "80:80"
+    networks:
+      - chat2db_net
     restart: unless-stopped
-    ports:
-      - "4200:80"
-    networks:
-      - chat2db_net
-
-  # frontend-dev: containerized development server (runs ng serve)
-  # Use this when you want to run the Angular dev server inside a container.
-  # It mounts the source so code changes are reflected immediately.
-  frontend-dev:
-    image: node:18-alpine
-    container_name: chat2db_frontend_dev
-    working_dir: /app/frontend
-    volumes:
-      - ./frontend:/app/frontend:delegated
-      - /app/frontend/node_modules
-    command: sh -lc "npm ci --silent || npm install --silent && npm run start -- --host 0.0.0.0 --port 4200 --no-open --disable-host-check"
-    ports:
-      - "4201:4200"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    networks:
-      - chat2db_net
 
 networks:
   chat2db_net:

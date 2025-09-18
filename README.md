@@ -1,51 +1,142 @@
-# chat2db
+# Chat2DB 增强版前端
 
-本项目是一个简化版的 Chat2DB 原型：
+这是一个复刻并增强的Chat2DB前端应用，包含了付费版功能。
 
-目录结构：
+## 功能特性
 
+1. **仪表板** - 用户概览和快速导航
+2. **AI助手** - 集成自然语言处理和AI模型对话
+3. **SQL编辑器** - 增强的SQL查询功能，支持代码补全和格式化
+4. **数据浏览器** - 表结构查看和数据浏览功能
+5. **连接管理** - 多数据库连接管理
+6. **表管理** - 数据库表结构管理
 
-运行说明见各目录下 README。
-# chat2db
+## 技术栈
 
-本项目是一个简化版的 Chat2DB 原型：
-- 前端：Angular 项目模板（示例组件和服务）
-- 后端：Python Flask API，提供自然语言 -> SQL 的简单转换，并在本地 SQLite 上执行查询
+- Angular 12+
+- TypeScript
+- HTML/CSS
+- RxJS
 
-目录结构：
+## 最新优化
 
-- `backend/`  -> Flask 后端代码
-- `frontend/` -> Angular 前端示例（只包含可复制粘贴的组件和服务）
+### AI对话交互优化
 
-运行说明见各目录下 README。下面包含 Docker 化的快速使用说明。
+我们对AI助手组件进行了全面的界面和交互优化：
 
-## 使用 Docker（快速开始）
+1. **消息类型差异化显示**
+   - 用户消息：右侧对齐，蓝色背景
+   - AI普通回复：左侧对齐，白色背景
+   - AI思考过程：左侧对齐，浅黄色背景，带特殊标识
+   - 错误消息：左侧对齐，浅红色背景
+   - 系统消息：居中显示，灰色背景
 
-本仓库包含 `docker-compose.yml`，可以用来在容器中运行后端并挂载持久化的 SQLite 数据库。
+2. **思考模式内容特殊显示**
+   - 单独的消息类型用于显示AI的思考过程
+   - 流式更新显示AI的逐步思考
+   - 特殊的视觉标识（脑图图标）
+   - 加载动画增强用户体验
 
-示例步骤：
+3. **加载状态优化**
+   - 更清晰的加载状态指示器
+   - 分阶段显示处理过程
+   - 脉冲动画增强视觉反馈
 
-1. 构建并启动服务：
+4. **长消息处理**
+   - 智能折叠机制，根据内容长度自动折叠
+   - 代码块特殊处理，提供更好的可读性
+   - 展开/收起按钮
+
+5. **界面美化**
+   - 现代化设计风格
+   - 圆角设计和阴影效果
+   - 响应式布局适配移动端
+
+## 安装和运行
+
+1. 确保已安装Node.js和npm
+2. 安装Angular CLI: `npm install -g @angular/cli`
+3. 进入前端目录: `cd frontend`
+4. 安装依赖: `npm install`
+5. 启动开发服务器: `ng serve`
+6. 访问应用: http://localhost:4200
+
+## 架构说明
+
+### 组件结构
+
+- `app/` - 主应用组件
+  - `components/` - 各功能组件
+    - `auth/` - 认证相关组件
+    - `dashboard/` - 仪表板组件
+    - `ai-assistant/` - AI助手组件
+    - `sql-editor/` - SQL编辑器组件
+    - `data-browser/` - 数据浏览器组件
+    - `connection-manager/` - 连接管理组件
+    - `table-manager/` - 表管理组件
+  - `services/` - 服务层
+  - `guards/` - 路由守卫
+
+### 路由配置
+
+应用包含以下路由：
+- `/dashboard` - 仪表板
+- `/query` - 基础查询
+- `/ai-assistant` - AI助手
+- `/sql-editor` - SQL编辑器
+- `/data-browser` - 数据浏览器
+- `/connections` - 连接管理
+- `/tables` - 表管理
+- `/login` - 登录
+- `/register` - 注册
+
+## 付费版功能
+
+1. **AI助手集成** - 与Ollama等AI模型集成，支持自然语言数据库查询
+2. **增强SQL编辑器** - 包含代码补全、语法高亮、格式化等功能
+3. **数据浏览器** - 可视化数据浏览，支持过滤、排序、分页和导出
+4. **高级连接管理** - 支持多种数据库类型（SQLite, MySQL, PostgreSQL等）
+5. **用户友好的仪表板** - 直观的统计数据展示和快速导航
+
+## 开发说明
+
+1. 所有组件都遵循Angular的最佳实践
+2. 使用服务层进行HTTP请求和业务逻辑处理
+3. 实现了路由守卫确保应用安全性
+4. 响应式设计适配不同屏幕尺寸
+
+## 注意事项
+
+1. 后端API需要在`http://localhost:5001`运行
+2. 确保后端服务正确配置了数据库连接
+3. AI功能需要Ollama服务支持
+
+## 部署
+
+### Docker Compose 部署（推荐）
 
 ```bash
-cd /home/mzf/chat2db
+# 构建并启动所有服务
 docker compose up --build -d
-```
 
-2. 第一次启动后会在 `./data/chat2db.sqlite` 下生成示例数据库（由容器内部的初始化脚本写入）。
+# 查看服务状态
+docker compose ps
 
-3. 测试后端接口（在宿主机运行）：
+# 查看日志
+docker compose logs -f
 
-```bash
-curl -X POST http://127.0.0.1:5001/api/query -H "Content-Type: application/json" -d '{"query":"show me employees"}'
-```
-
-4. 停止并移除容器：
-
-```bash
+# 停止服务
 docker compose down
 ```
 
-注意：如果你正在使用较旧的 Docker / Compose，请使用 `docker-compose` 而不是 `docker compose`。
+### 访问应用
 
-前端部分示例文件位于 `frontend/`，你可以将其复制到你的 Angular 项目并通过 `QueryService` 调用后端。
+- 前端界面：http://localhost
+- 后端API：http://localhost:5001
+
+### 生产环境部署建议
+
+1. 使用反向代理（如 Nginx）处理 SSL 终止
+2. 配置合适的资源限制
+3. 定期备份数据目录（`./data`）
+4. 监控服务日志和性能

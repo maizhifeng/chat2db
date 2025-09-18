@@ -1,0 +1,143 @@
+.sql-editor {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.editor-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.editor-options label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+
+.editor-container {
+  margin-bottom: 20px;
+}
+
+.sql-input textarea {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.generated-sql {
+  background: #f8f9fa;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.generated-sql h4 {
+  margin-top: 0;
+  color: #333;
+}
+
+.generated-sql pre {
+  background: #2d2d2d;
+  color: #f8f8f2;
+  padding: 15px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.query-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px 15px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.execution-time {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.error-message {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.results-container {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #ddd;
+}
+
+.results-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.results-table-container {
+  overflow-x: auto;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results-table th,
+.results-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.results-table th {
+  background: #e9ecef;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.results-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.results-info {
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #ddd;
+  text-align: right;
+  font-weight: 500;
+}

@@ -1,30 +1,58 @@
 .chat2db {
   padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .chat2db h3 {
   color: #333;
   margin-bottom: 15px;
+  text-align: center;
+}
+
+.query-options {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.query-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.query-options input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
 }
 
 .chat2db textarea {
   width: 100%;
-  max-width: 600px;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 8px;
   font-family: monospace;
   resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
+  font-size: 14px;
 }
 
 .chat2db button {
-  padding: 6px 12px;
+  padding: 10px 16px;
   margin: 0 5px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   background-color: #007bff;
   color: white;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .chat2db button:disabled {
@@ -34,40 +62,142 @@
 
 .chat2db button:hover:not(:disabled) {
   background-color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.chat2db button.secondary {
+  background-color: #6c757d;
+}
+
+.chat2db button.secondary:hover:not(:disabled) {
+  background-color: #5a6268;
 }
 
 .chat2db select {
-  padding: 4px 8px;
+  padding: 8px 12px;
   margin: 0 5px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 14px;
+}
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.model-selector label {
+  font-weight: 500;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0;
+  flex-wrap: wrap;
 }
 
 .chat2db h4 {
   color: #333;
   margin-top: 20px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid #007bff;
 }
 
 .chat2db pre {
-  background-color: #f8f9fa;
+  background-color: #2d2d2d;
+  color: #f8f8f2;
   padding: 15px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 6px;
   overflow-x: auto;
+  margin: 10px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.loading-message {
+  padding: 12px;
+  background: #e3f2fd;
+  border-radius: 6px;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .chat2db table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .chat2db table th, .chat2db table td {
-  padding: 8px;
+  padding: 12px;
   text-align: left;
   border: 1px solid #ddd;
 }
 
 .chat2db table th {
-  background-color: #f2f2f2;
+  background-color: #007bff;
+  color: white;
+  font-weight: 600;
+}
+
+.chat2db table tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.chat2db table tr:hover {
+  background-color: #e9ecef;
+}
+
+.results-container {
+  margin-top: 20px;
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .chat2db {
+    padding: 15px;
+  }
+  
+  .model-selector {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .chat2db button {
+    width: 100%;
+    margin: 5px 0;
+  }
 }

@@ -1,0 +1,147 @@
+<div class="ai-assistant">
+  <div class="header">
+    <h2>AI数据库助手</h2>
+    <div class="model-selector">
+      <label for="model">AI模型:</label>
+      <select id="model" [(ngModel)]="selectedModel" [disabled]="loadingModels">
+        <option *ngFor="let model of models" [value]="model">{{ model }}</option>
+      </select>
+      <button (click)="loadModels()" [disabled]="loadingModels" class="btn btn-secondary">
+        {{ loadingModels ? '加载中...' : '刷新' }}
+      </button>
+      <!-- 添加测试按钮 -->
+      <button (click)="testSeparation()" class="btn btn-secondary">
+        测试分离显示
+      </button>
+    </div>
+  </div>
+
+  <div class="chat-container">
+    <div #messagesContainer class="messages">
+      <div *ngFor="let message of messages; let i = index" 
+           class="message" 
+           [ngClass]="'message-' + message.role + (message.messageType ? ' message-type-' + message.messageType : '')"
+           [attr.data-message-id]="i">
+        <div class="message-header">
+          <span class="message-role">
+            <span class="message-role-icon" *ngIf="message.role === 'assistant' && message.messageType === 'thinking'">🧠</span>
+            <span class="message-role-icon" *ngIf="message.role === 'assistant' && message.messageType === 'error'">⚠️</span>
+            <span class="message-role-icon" *ngIf="message.role === 'assistant' && message.messageType === 'database'">📊</span>
+            <span class="message-role-text">{{ message.role === 'user' ? '您' : 
+                                               message.messageType === 'thinking' ? '思考中' : 
+                                               message.messageType === 'error' ? '错误' : 
+                                               message.messageType === 'database' ? '数据库' : 
+                                               message.messageType === 'system' ? '系统' : 'AI助手' }}</span>
+          </span>
+          <span class="message-timestamp">{{ message.timestamp | date:'HH:mm:ss' }}</span>
+          <!-- 为长消息添加折叠按钮 -->
+          <button *ngIf="message.isLongMessage" (click)="toggleMessageCollapse(i)" class="collapse-btn">
+            {{ message.isCollapsed ? '展开' : '折叠' }}
+          </button>
+        </div>
+        <div class="message-content">
+          <!-- 思考模式内容特殊显示 -->
+          <div *ngIf="message.messageType === 'thinking'">
+            <div class="thinking-indicator" *ngIf="message.isProcessing">
+              <div class="thinking-spinner"></div>
+              <span class="thinking-text">{{ message.content }}</span>
+            </div>
+            <div *ngIf="!message.isProcessing">
+              <pre>{{ message.content }}</pre>
+            </div>
+          </div>
+          
+          <!-- 新增：分离显示思考过程和回复内容 -->
+          <div *ngIf="message.messageType === 'separated'">
+            <!-- 思考过程部分 -->
+            <div class="thinking-section" *ngIf="message.thinkingContent">
+              <div class="section-header">
+                <span class="section-icon">🧠</span>
+                <span class="section-title">思考过程</span>
+              </div>
+              <div class="section-content">
+                <pre>{{ message.thinkingContent }}</pre>
+              </div>
+            </div>
+            
+            <!-- 回复内容部分 -->
+            <div class="response-section" *ngIf="message.responseContent">
+              <div class="section-header">
+                <span class="section-icon">💬</span>
+                <span class="section-title">回复内容</span>
+              </div>
+              <div class="section-content">
+                <span>{{ message.responseContent }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 对于长消息，根据折叠状态显示内容 -->
+          <div *ngIf="message.isLongMessage && message.messageType !== 'thinking' && message.messageType !== 'separated'">
+            <!-- 折叠时显示简短预览 -->
+            <div *ngIf="message.isCollapsed" class="collapsed-content">
+              <pre *ngIf="message.content.startsWith('```sql') || message.content.startsWith('```')">{{ getPreviewContent(message.content) }}</pre>
+              <span *ngIf="!message.content.startsWith('```sql') && !message.content.startsWith('```')">{{ getPreviewContent(message.content) }}</span>
+              <button (click)="toggleMessageCollapse(i)" class="expand-btn">展开全文</button>
+            </div>
+            <!-- 展开时显示完整内容 -->
+            <div *ngIf="!message.isCollapsed">
+              <pre *ngIf="message.content.startsWith('```sql') || message.content.startsWith('```')">{{ message.content }}</pre>
+              <span *ngIf="!message.content.startsWith('```sql') && !message.content.startsWith('```')">{{ message.content }}</span>
+            </div>
+          </div>
+          
+          <!-- 短消息或用户消息直接显示 -->
+          <div *ngIf="!message.isLongMessage && message.messageType !== 'thinking' && message.messageType !== 'separated'">
+            <pre *ngIf="message.content.startsWith('```sql') || message.content.startsWith('```')">{{ message.content }}</pre>
+            <span *ngIf="!message.content.startsWith('```sql') && !message.content.startsWith('```')">{{ message.content }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 添加加载指示器 -->
+      <div *ngIf="loading" class="message message-assistant loading-message">
+        <div class="message-header">
+          <span class="message-role">
+            <span class="message-role-icon">🤖</span>
+            <span class="message-role-text">AI助手</span>
+          </span>
+          <span class="message-timestamp">{{ currentTime | date:'HH:mm:ss' }}</span>
+        </div>
+        <div class="message-content">
+          <div class="loading-indicator">
+            <span>{{ loadingMessage || '正在处理您的请求...' }}</span>
+            <div class="pulse-loader">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加加载状态显示 -->
+    <div *ngIf="loadingMessage && !loading" class="loading-status">
+      <span class="loading-status-icon">ℹ️</span>
+      <span>{{ loadingMessage }}</span>
+    </div>
+
+    <div class="input-area">
+      <textarea 
+        [(ngModel)]="userInput" 
+        (keydown.control.enter)="sendMessage()" 
+        (keydown.meta.enter)="sendMessage()"
+        placeholder="输入您的问题... (按Ctrl+Enter或Cmd+Enter发送)"
+        [disabled]="loading">
+      </textarea>
+      <div class="input-actions">
+        <button (click)="clearChat()" class="clear-button">清空对话</button>
+        <button (click)="sendMessage()" [disabled]="!userInput.trim() || loading" class="send-button">
+          <span *ngIf="!loading">发送</span>
+          <span *ngIf="loading">发送中...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

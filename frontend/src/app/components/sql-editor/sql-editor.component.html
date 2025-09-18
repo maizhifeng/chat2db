@@ -1,0 +1,70 @@
+<div class="sql-editor">
+  <div class="editor-header">
+    <h2>SQL编辑器</h2>
+    <div class="editor-options">
+      <label>
+        <input type="checkbox" [(ngModel)]="useNlp">
+        使用自然语言处理
+      </label>
+    </div>
+  </div>
+
+  <div class="editor-container">
+    <div class="sql-input">
+      <textarea 
+        [(ngModel)]="sqlQuery" 
+        (input)="onInput($event)"
+        placeholder="输入SQL查询或自然语言描述..."
+        rows="8">
+      </textarea>
+      
+      <div class="editor-actions">
+        <button (click)="executeQuery()" [disabled]="loading" class="btn btn-primary">
+          {{ loading ? '执行中...' : '执行查询' }}
+        </button>
+        <button (click)="formatSql()" class="btn btn-secondary">格式化</button>
+        <button (click)="clearResults()" class="btn btn-secondary">清空结果</button>
+      </div>
+    </div>
+
+    <div *ngIf="useNlp && generatedSql" class="generated-sql">
+      <h4>生成的 SQL</h4>
+      <pre>{{ generatedSql }}</pre>
+    </div>
+  </div>
+
+  <div class="query-info" *ngIf="executionTime > 0 || error">
+    <div *ngIf="executionTime > 0" class="execution-time">
+      执行时间: {{ executionTime | number:'1.2-2' }} ms
+    </div>
+    <div *ngIf="error" class="error-message">
+      错误: {{ error }}
+    </div>
+  </div>
+
+  <div class="results-container" *ngIf="results.length > 0">
+    <div class="results-header">
+      <h3>查询结果</h3>
+      <button (click)="exportResults()" class="btn btn-secondary">导出为CSV</button>
+    </div>
+    
+    <div class="results-table-container">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th *ngFor="let key of getObjectKeys(results[0])">{{ key }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of results">
+            <td *ngFor="let key of getObjectKeys(row)">{{ row[key] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="results-info">
+      共 {{ results.length }} 条记录
+    </div>
+  </div>
+</div>
