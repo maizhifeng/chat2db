@@ -1,50 +1,86 @@
 <div class="dashboard">
-  <div class="header">
-    <h1>Chat2DB 控制台</h1>
-    <div class="user-info">
-      <span>欢迎, {{ currentUser?.username }}!</span>
-      <button (click)="logout()" class="btn btn-secondary">注销</button>
-    </div>
-  </div>
+  <mat-card class="header-card">
+    <mat-card-header>
+      <mat-card-title>
+        <h1>Chat2DB 控制台</h1>
+      </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="user-info">
+        <span>欢迎, {{ currentUser?.username }}!</span>
+        <button mat-raised-button color="warn" (click)="logout()">注销</button>
+      </div>
+    </mat-card-content>
+  </mat-card>
 
-  <div class="stats-grid">
-    <div class="stat-card" (click)="navigateTo('connections')">
-      <div class="stat-value">{{ stats.connections }}</div>
-      <div class="stat-label">数据库连接</div>
-    </div>
-    <div class="stat-card" (click)="navigateTo('tables')">
-      <div class="stat-value">{{ stats.tables }}</div>
-      <div class="stat-label">数据表</div>
-    </div>
-    <div class="stat-card" (click)="navigateTo('query')">
-      <div class="stat-value">{{ stats.queries }}</div>
-      <div class="stat-label">查询次数</div>
-    </div>
-    <div class="stat-card" (click)="navigateTo('models')">
-      <div class="stat-value">{{ stats.models }}</div>
-      <div class="stat-label">AI模型</div>
-    </div>
-  </div>
+  <mat-grid-list cols="4" rowHeight="200px" gutterSize="10px">
+    <mat-grid-tile (click)="navigateTo('connections')">
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ stats.connections }}</div>
+          <div class="stat-label">数据库连接</div>
+        </mat-card-content>
+      </mat-card>
+    </mat-grid-tile>
+    <mat-grid-tile (click)="navigateTo('tables')">
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ stats.tables }}</div>
+          <div class="stat-label">数据表</div>
+        </mat-card-content>
+      </mat-card>
+    </mat-grid-tile>
+    <mat-grid-tile (click)="navigateTo('query')">
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ stats.queries }}</div>
+          <div class="stat-label">查询次数</div>
+        </mat-card-content>
+      </mat-card>
+    </mat-grid-tile>
+    <mat-grid-tile (click)="navigateTo('models')">
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ stats.models }}</div>
+          <div class="stat-label">AI模型</div>
+        </mat-card-content>
+      </mat-card>
+    </mat-grid-tile>
+  </mat-grid-list>
 
-  <div class="quick-actions">
-    <h2>快速操作</h2>
-    <div class="actions-grid">
-      <button class="action-btn" (click)="navigateTo('connections')">
-        <i class="icon">🔗</i>
-        <span>管理连接</span>
-      </button>
-      <button class="action-btn" (click)="navigateTo('query')">
-        <i class="icon">🔍</i>
-        <span>执行查询</span>
-      </button>
-      <button class="action-btn" (click)="navigateTo('tables')">
-        <i class="icon">📊</i>
-        <span>浏览数据</span>
-      </button>
-      <button class="action-btn" (click)="navigateTo('ai-assistant')">
-        <i class="icon">🤖</i>
-        <span>AI助手</span>
-      </button>
-    </div>
-  </div>
+  <mat-card class="quick-actions-card">
+    <mat-card-header>
+      <mat-card-title>
+        <h2>快速操作</h2>
+      </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <mat-grid-list cols="4" rowHeight="150px" gutterSize="10px">
+        <mat-grid-tile (click)="navigateTo('connections')">
+          <button mat-raised-button color="primary" class="action-btn">
+            <mat-icon>link</mat-icon>
+            <span>管理连接</span>
+          </button>
+        </mat-grid-tile>
+        <mat-grid-tile (click)="navigateTo('query')">
+          <button mat-raised-button color="primary" class="action-btn">
+            <mat-icon>search</mat-icon>
+            <span>执行查询</span>
+          </button>
+        </mat-grid-tile>
+        <mat-grid-tile (click)="navigateTo('tables')">
+          <button mat-raised-button color="primary" class="action-btn">
+            <mat-icon>bar_chart</mat-icon>
+            <span>浏览数据</span>
+          </button>
+        </mat-grid-tile>
+        <mat-grid-tile (click)="navigateTo('ai-assistant')">
+          <button mat-raised-button color="primary" class="action-btn">
+            <mat-icon>android</mat-icon>
+            <span>AI助手</span>
+          </button>
+        </mat-grid-tile>
+      </mat-grid-list>
+    </mat-card-content>
+  </mat-card>
 </div>
