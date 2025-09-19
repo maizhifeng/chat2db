@@ -13,10 +13,28 @@
 
 ## 技术栈
 
-- Angular 12+
+- Angular 12+ (原版本)
+- Svelte 4+ (新版本)
 - TypeScript
 - HTML/CSS
-- RxJS
+- RxJS (Angular版本)
+
+## 前端迁移说明
+
+为了提升性能、减小包体积并改善开发体验，我们已将前端框架从 Angular 迁移到 Svelte。
+
+### 迁移内容
+
+1. **框架迁移** - 从 Angular 迁移到 Svelte
+2. **构建工具** - 从 Angular CLI 迁移到 Vite
+3. **组件重构** - 将 Angular 组件重构为 Svelte 组件
+4. **状态管理** - 使用 Svelte 内置响应式系统替代 RxJS
+5. **API 集成** - 重构为基于 fetch API 的调用
+
+### 目录结构
+
+- `frontend/` - 旧的 Angular 前端代码（保留作为参考）
+- `svelte-frontend/` - 新的 Svelte 前端代码（当前使用）
 
 ## 最新优化
 
@@ -54,6 +72,23 @@
 
 ## 安装和运行
 
+### Node.js 环境准备
+
+如果系统中尚未安装 Node.js，请运行以下脚本安装：
+
+```bash
+./install-node.sh
+```
+
+### Svelte 前端运行
+
+1. 进入 Svelte 前端目录: `cd svelte-frontend`
+2. 安装依赖: `npm install`
+3. 启动开发服务器: `npm run dev`
+4. 访问应用: http://localhost:3000
+
+### Angular 前端运行（仅作参考）
+
 1. 确保已安装Node.js和npm
 2. 安装Angular CLI: `npm install -g @angular/cli`
 3. 进入前端目录: `cd frontend`
@@ -65,30 +100,20 @@
 
 ### 组件结构
 
-- `app/` - 主应用组件
-  - `components/` - 各功能组件
-    - `auth/` - 认证相关组件
-    - `dashboard/` - 仪表板组件
-    - `ai-assistant/` - AI助手组件
-    - `sql-editor/` - SQL编辑器组件
-    - `data-browser/` - 数据浏览器组件
-    - `connection-manager/` - 连接管理组件
-    - `table-manager/` - 表管理组件
-  - `services/` - 服务层
-  - `guards/` - 路由守卫
+- `svelte-frontend/` - Svelte 前端
+  - `src/` - 主源码目录
+    - `App.svelte` - 主应用组件
+    - `Query.svelte` - 查询组件
+    - `api.js` - API 客户端
+    - `app.css` - 全局样式
+    - `main.js` - 应用入口
+  - `src/environments/` - 环境配置
+  - `src/__tests__/` - 测试文件
 
 ### 路由配置
 
 应用包含以下路由：
-- `/dashboard` - 仪表板
-- `/query` - 基础查询
-- `/ai-assistant` - AI助手
-- `/sql-editor` - SQL编辑器
-- `/data-browser` - 数据浏览器
-- `/connections` - 连接管理
-- `/tables` - 表管理
-- `/login` - 登录
-- `/register` - 注册
+- `/` - 主查询界面
 
 ## 付费版功能
 
@@ -100,10 +125,9 @@
 
 ## 开发说明
 
-1. 所有组件都遵循Angular的最佳实践
-2. 使用服务层进行HTTP请求和业务逻辑处理
-3. 实现了路由守卫确保应用安全性
-4. 响应式设计适配不同屏幕尺寸
+1. 所有组件都遵循Svelte的最佳实践
+2. 使用基于fetch的API客户端进行HTTP请求
+3. 响应式设计适配不同屏幕尺寸
 
 ## 注意事项
 

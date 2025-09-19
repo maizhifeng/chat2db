@@ -1,0 +1,9 @@
+{
+  "extends": "@sveltejs/vite-plugin-svelte/host-options",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "es2020",
+    "moduleResolution": "node"
+  },
+  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "src/**/*.svelte"]
+}

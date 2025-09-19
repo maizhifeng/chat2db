@@ -21,12 +21,11 @@ services:
       - chat2db_net
     restart: unless-stopped
 
-  frontend:
+  svelte-frontend:
     build:
-      context: ./frontend
+      context: ./svelte-frontend
       dockerfile: Dockerfile
-      target: production
-    container_name: chat2db_frontend
+    container_name: chat2db_svelte_frontend
     depends_on:
       - backend
     ports:
