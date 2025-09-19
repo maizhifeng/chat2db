@@ -436,7 +436,15 @@ def get_tables(conn_id):
         elif connection.type == 'mysql':
             query = f"SELECT table_name as name FROM information_schema.tables WHERE table_schema = '{connection.database}';"
         elif connection.type == 'postgresql':
-            query = f"SELECT tablename as name FROM pg_tables WHERE schemaname = 'public';"
+            # 查询所有有权限访问的模式中的表，排除系统模式
+            query = """
+            SELECT CONCAT(schemaname, '.', tablename) as name 
+            FROM pg_tables 
+            WHERE schemaname NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+            AND schemaname NOT LIKE 'pg_temp_%'
+            AND schemaname NOT LIKE 'pg_toast_temp_%'
+            ORDER BY schemaname, tablename
+            """
         else:
             return jsonify({'error': f'Unsupported database type: {connection.type}'}), 400
             
@@ -476,7 +484,13 @@ def get_table_schema(conn_id, table_name):
         elif connection.type == 'mysql':
             query = f"DESCRIBE {table_name};"
         elif connection.type == 'postgresql':
-            query = f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table_name}' AND table_schema = 'public';"
+            # 处理包含模式名的表名 (schema.table)
+            if '.' in table_name:
+                schema_name, table_name_only = table_name.split('.', 1)
+                query = f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table_name_only}' AND table_schema = '{schema_name}';"
+            else:
+                # 如果只有表名，在所有模式中查找
+                query = f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table_name}' AND table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast');"
         else:
             return jsonify({'error': f'Unsupported database type: {connection.type}'}), 400
             
@@ -505,7 +519,12 @@ def query_table_data(conn_id, table_name):
         engine = get_db_engine(connection)
         
         # Build query with optional filters, sorting, and pagination
-        query = f"SELECT * FROM {table_name}"
+        # 对于PostgreSQL，如果表名包含模式名，直接使用；否则添加public模式
+        if connection.type == 'postgresql' and '.' not in table_name:
+            # 如果没有指定模式，默认使用public模式
+            query = f"SELECT * FROM public.{table_name}"
+        else:
+            query = f"SELECT * FROM {table_name}"
         
         # Add filtering
         filter_column = data.get('filterColumn')
@@ -538,7 +557,11 @@ def query_table_data(conn_id, table_name):
                         row[key] = int(value) if value == int(value) else float(value)
         
         # Get total count for pagination
-        count_query = f"SELECT COUNT(*) as count FROM {table_name}"
+        # 对于PostgreSQL，如果表名包含模式名，直接使用；否则添加public模式
+        if connection.type == 'postgresql' and '.' not in table_name:
+            count_query = f"SELECT COUNT(*) as count FROM public.{table_name}"
+        else:
+            count_query = f"SELECT COUNT(*) as count FROM {table_name}"
         if filter_column and filter_value:
             count_query += f" WHERE {filter_column} LIKE '%{filter_value}%'"
         
