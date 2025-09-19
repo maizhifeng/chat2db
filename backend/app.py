@@ -302,18 +302,39 @@ def test_connection(conn_id):
         session = Session()
         connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
         if not connection:
+            session.close()
             return jsonify({'error': 'connection not found'}), 404
             
-        # Create engine and test connection
+        # Create engine and test basic connection
         engine = get_db_engine(connection)
         # Try to connect
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        return jsonify({'message': 'connection successful'})
+            
+        # Test table query permissions
+        try:
+            # Get table names
+            if connection.type == 'sqlite':
+                query = "SELECT name FROM sqlite_master WHERE type='table';"
+            elif connection.type == 'mysql':
+                query = f"SELECT table_name as name FROM information_schema.tables WHERE table_schema = '{connection.database}';"
+            elif connection.type == 'postgresql':
+                query = f"SELECT tablename as name FROM pg_tables WHERE schemaname = 'public';"
+            else:
+                session.close()
+                return jsonify({'error': f'Unsupported database type: {connection.type}'}), 400
+                
+            df = pd.read_sql_query(query, engine)
+            table_count = len(df)
+            session.close()
+            return jsonify({'message': f'Connection successful. Found {table_count} tables.'})
+        except Exception as table_error:
+            session.close()
+            return jsonify({'error': f'Connection successful but failed to query tables: {str(table_error)}'}), 500
+            
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
         session.close()
+        return jsonify({'error': str(e)}), 500
 
 # Enhanced query endpoint that supports multiple database types
 @app.route('/api/query/<conn_id>', methods=['POST'])
@@ -386,17 +407,30 @@ def nl2sql():
 @require_auth
 def get_tables(conn_id):
     try:
+        # Validate conn_id parameter
+        if not conn_id or conn_id.strip() == '':
+            return jsonify({'error': 'connection id is required'}), 400
+            
         # Get the database connection
         session = Session()
         connection = session.query(DatabaseConnection).filter_by(id=conn_id).first()
         if not connection:
+            session.close()
             return jsonify({'error': 'connection not found'}), 404
         session.close()
         
+        # Log the connection details for debugging (without sensitive info)
+        app.logger.info(f"Getting tables for connection {conn_id} of type {connection.type}")
+        
         # Create engine for the target database
-        engine = get_db_engine(connection)
+        try:
+            engine = get_db_engine(connection)
+        except Exception as e:
+            app.logger.error(f"Failed to create engine for connection {conn_id}: {str(e)}")
+            return jsonify({'error': f'Failed to connect to database: {str(e)}'}), 500
         
         # Get table names
+        query = None
         if connection.type == 'sqlite':
             query = "SELECT name FROM sqlite_master WHERE type='table';"
         elif connection.type == 'mysql':
@@ -406,11 +440,20 @@ def get_tables(conn_id):
         else:
             return jsonify({'error': f'Unsupported database type: {connection.type}'}), 400
             
-        df = pd.read_sql_query(query, engine)
-        tables = df['name'].tolist()
-        return jsonify(tables)
+        app.logger.info(f"Executing table query: {query}")
+        
+        try:
+            df = pd.read_sql_query(query, engine)
+            tables = df['name'].tolist()
+            app.logger.info(f"Found {len(tables)} tables for connection {conn_id}")
+            return jsonify(tables)
+        except Exception as e:
+            app.logger.error(f"Failed to execute table query for connection {conn_id}: {str(e)}")
+            return jsonify({'error': f'Failed to query tables: {str(e)}'}), 500
+            
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Unexpected error in get_tables for connection {conn_id}: {str(e)}")
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
 
 # Get table schema for a specific table
 @app.route('/api/connections/<conn_id>/tables/<table_name>', methods=['GET'])

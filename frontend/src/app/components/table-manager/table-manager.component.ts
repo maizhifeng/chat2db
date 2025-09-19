@@ -19,6 +19,7 @@ export class TableManagerComponent implements OnInit {
   
   loadingTables = false;
   loadingSchema = false;
+  tableError: string | null = null;  // Add error message property
 
   constructor(
     private connectionService: ConnectionService,
@@ -50,12 +51,14 @@ export class TableManagerComponent implements OnInit {
     this.tables = [];
     this.selectedTable = null;
     this.schema = [];
+    this.tableError = null;  // Clear error when changing connection
   }
 
   loadTables(): void {
     if (!this.selectedConnection) return;
     
     this.loadingTables = true;
+    this.tableError = null;  // Clear previous errors
     this.tableService.getTables(this.selectedConnection.id).subscribe({
       next: (tables) => {
         this.tables = tables;
@@ -63,6 +66,8 @@ export class TableManagerComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading tables', error);
+        // Set detailed error message
+        this.tableError = error.error?.error || error.message || 'Failed to load tables';
         this.loadingTables = false;
       }
     });

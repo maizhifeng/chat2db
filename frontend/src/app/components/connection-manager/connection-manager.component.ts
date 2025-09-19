@@ -65,6 +65,14 @@ export class ConnectionManagerComponent implements OnInit {
       return;
     }
     
+    // Additional validation based on database type
+    if (this.currentConnection.type !== 'sqlite') {
+      if (!this.currentConnection.host || !this.currentConnection.username) {
+        this.testResult = { success: false, message: '对于MySQL和PostgreSQL，主机和用户名是必填的' };
+        return;
+      }
+    }
+    
     if (this.isEditing) {
       // Check if connection ID is valid
       if (!this.currentConnection.id || this.currentConnection.id.trim() === '') {
@@ -133,6 +141,7 @@ export class ConnectionManagerComponent implements OnInit {
       return;
     }
     
+    this.testResult = { success: false, message: '测试连接中...' };
     this.connectionService.testConnection(id).subscribe({
       next: (result) => {
         this.testResult = { success: true, message: result.message || '连接测试成功' };
@@ -142,6 +151,40 @@ export class ConnectionManagerComponent implements OnInit {
         this.testResult = { success: false, message: '连接测试失败: ' + (error.error?.error || error.message) };
       }
     });
+  }
+
+  validateConnectionConfig(connection: DatabaseConnection): string[] {
+    const errors: string[] = [];
+    
+    // Check required fields
+    if (!connection.name) {
+      errors.push('连接名称是必填的');
+    }
+    
+    if (!connection.type) {
+      errors.push('数据库类型是必填的');
+    }
+    
+    if (!connection.database) {
+      errors.push('数据库名称是必填的');
+    }
+    
+    // Type-specific validation
+    if (connection.type !== 'sqlite') {
+      if (!connection.host) {
+        errors.push('主机地址是必填的');
+      }
+      
+      if (!connection.port) {
+        errors.push('端口号是必填的');
+      }
+      
+      if (!connection.username) {
+        errors.push('用户名是必填的');
+      }
+    }
+    
+    return errors;
   }
 
   private getEmptyConnection(): DatabaseConnection {

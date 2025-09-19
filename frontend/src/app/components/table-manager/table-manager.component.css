@@ -151,3 +151,17 @@
   padding: 10px;
   border-radius: 4px;
 }
+
+/* Error message styling */
+.error {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 15px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.error strong {
+  font-weight: bold;
+}

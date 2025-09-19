@@ -29,11 +29,17 @@
     
     <div *ngIf="loadingTables" class="loading">加载中...</div>
     
-    <div *ngIf="!loadingTables && tables.length === 0" class="no-tables">
+    <!-- Display error message if there's an error loading tables -->
+    <div *ngIf="!loadingTables && tableError" class="error">
+      <p><strong>加载表列表时出错:</strong> {{ tableError }}</p>
+      <p>请检查连接配置并确保数据库用户有权限查询表信息。</p>
+    </div>
+    
+    <div *ngIf="!loadingTables && !tableError && tables.length === 0" class="no-tables">
       <p>该数据库中没有找到表。</p>
     </div>
     
-    <div *ngIf="!loadingTables && tables.length > 0">
+    <div *ngIf="!loadingTables && !tableError && tables.length > 0">
       <h4>数据表</h4>
       <div class="table-grid">
         <div *ngFor="let table of tables" class="table-item" (click)="viewTable(table)">
